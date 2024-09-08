@@ -1,3 +1,9 @@
+# project-specific ignores
+input/*
+output/*
+CONFIG
+trial.png
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

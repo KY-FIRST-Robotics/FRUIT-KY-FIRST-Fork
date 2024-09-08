@@ -1,0 +1,11 @@
+PyQt6
+random
+datetime
+os
+json
+moviepy
+requests
+base64
+PIL
+google_auth_oauthlib
+googleapiclient
