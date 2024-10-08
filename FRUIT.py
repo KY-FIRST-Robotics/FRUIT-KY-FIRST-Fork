@@ -19,6 +19,8 @@ from TOOLS.FMS import getMatchesFromFMS
 from TOOLS.YouTube import authenticate_youtube
 from TOOLS.YouTube import upload_video
 from TOOLS.thumbnails import generateThumbnail
+from TOOLS.TBA import postTheBlueAlliance
+from TOOLS.TBA import translateMatchString
 
 # prepare related directories
 if not os.path.exists('input/'):
@@ -30,7 +32,6 @@ if not os.path.exists('output/thumbnails/'):
 
 # translator for symbols
 translateSymbol = {'M': 'Playoffs', 'Q': 'Quals', 'F': 'Finals'}
-translateSymbol_TBA = {'M': 'sf#m1', 'Q': 'qm', 'F': 'f1m'}
 
 class makeTheSauceThread(QThread):
     result_ready = pyqtSignal(int)
@@ -99,6 +100,14 @@ class makeTheSauceThread(QThread):
                     
                     # upload to YouTube
                     videoID = upload_video(self.YouTube, 'output/'+outputFileName, request_body, thumbnailLoc, playlistID=CONFIG['YouTube']['playlist'])
+
+                    # post video to TBA
+                    data = {translateMatchString(matchID): videoID}
+                    response = postTheBlueAlliance(CONFIG['TBA']['Auth_Id'], CONFIG['TBA']['Auth_Secret'], CONFIG['TBA']['eventKey'], data)
+
+                    if response.status_code != 200:
+                        print('Issue with TBA API for some reason?')
+
                     print('Done:'+matchID+' ('+videoID+')')
             
         return len(matchesInFile.items())
@@ -126,7 +135,7 @@ class MainWindow(QWidget):
          - information on how to use tool
          - mostly text
         '''
-        bodyText = "<ol style='font-size: 16px !important;'><li><b>Event Info</b>: used to obtain match details from FMS, learn more at https://frc-events.firstinspires.org/services/api</li><li>Connect to your YouTube account using the browser. Define <b>YouTube Settings</b> for video upload.</li><li>Supply <b>Thumbail Info</b> and test its generation.</li><li>Set <b>Match Timing</b> offsets in second, relative to match start and scores post (in seconds).</li><li>Select the <b>Video File</b> to be trimmed.</li><li><b>Bake CONFIG</b> to save on future re-entry time.</li><li>Click the <b>Make The Sauce</b> button to get everything rolling!"
+        bodyText = "<ol style='font-size: 16px !important;'><li><b>Event Info</b>: used to obtain match details from FMS, learn more at https://frc-events.firstinspires.org/services/api</li><li>Connect to your YouTube account using the browser. Define <b>YouTube Settings</b> for video upload.</li><li>Supply <b>Thumbnail Info</b> and test its generation.</li><li>Set <b>Match Timing</b> offsets in second, relative to match start and scores post (in seconds).</li><li>Select the <b>Video File</b> to be trimmed.</li><li><b>Bake CONFIG</b> to save on future re-entry time.</li><li>Click the <b>Make The Sauce</b> button to get everything rolling!"
 
         page_welcome = QWidget(self)
         layout = QFormLayout()
@@ -161,7 +170,6 @@ class MainWindow(QWidget):
          - YouTube video description, tags, playlist
         '''
         page_YouTube = QWidget(self)
-        page_YouTube.setStyleSheet('QTabBar::tab {background-color: red;}')
         layout = QFormLayout()
         page_YouTube.setLayout(layout)
         layout.addRow(QLabel('<b>Connect the YouTube channel you want to upload to, accepting both permissions (read & write videos)</b>'))
@@ -260,6 +268,25 @@ class MainWindow(QWidget):
         self.media_player.setVideoOutput(self.video_widget)
 
         '''
+        TBA PAGE
+         - Season Year
+         - Event Code & Name
+         - Pull from FMS
+        '''
+        page_TBA = QWidget(self)
+        layout = QFormLayout()
+        page_TBA.setLayout(layout)
+
+        self.TBA_eventCode = QLineEdit(); layout.addRow(QLabel('TBA event code:'), self.TBA_eventCode)
+        self.TBA_AuthID = QLineEdit(); layout.addRow(QLabel('Associated Auth ID:'), self.TBA_AuthID)
+        self.TBA_AuthSecret = QLineEdit(); layout.addRow(QLabel('Associated Auth Secret:'), self.TBA_AuthSecret)
+        
+        # FMS pull button
+        self.button_TBA = QPushButton("Verify TBA"); self.button_TBA.setStyleSheet('color: red')
+        self.button_TBA.clicked.connect(lambda: self.handleTBA(self.TBA_AuthID.text(), self.TBA_AuthSecret.text(), self.TBA_eventCode.text()))
+        layout.addRow(self.button_TBA)
+
+        '''
         add all tabs to window
         '''
         self.tab.addTab(page_welcome, 'Welcome')
@@ -268,12 +295,14 @@ class MainWindow(QWidget):
         self.tab.addTab(page_thumbnail, 'Thumbnail Info')
         self.tab.addTab(page_timings, 'Match Timing')
         self.tab.addTab(page_video, 'Video File')
+        self.tab.addTab(page_TBA, 'The Blue Alliance')
         # set tab colors
         self.tab.tabBar().setTabTextColor(1, QColor('red'))
         self.tab.tabBar().setTabTextColor(2, QColor('red'))
         self.tab.tabBar().setTabTextColor(3, QColor('red'))
         self.tab.tabBar().setTabTextColor(4, QColor('green'))
         self.tab.tabBar().setTabTextColor(5, QColor('red'))
+        self.tab.tabBar().setTabTextColor(6, QColor('red'))
         main_layout.addWidget(self.tab)
 
         '''
@@ -351,6 +380,24 @@ class MainWindow(QWidget):
             text.setText('<font color="red">Event does not exist!</font>')
             self.tab.tabBar().setTabTextColor(1, QColor('red'))
     
+    def handleTBA(self, TBA_Auth_Id, TBA_Auth_Secret, TBA_eventKey):
+        self.button_TBA.setText('Testing TBA API...')
+        self.button_TBA.setStyleSheet('color: aqua')
+        self.button_TBA.repaint()
+
+        response = postTheBlueAlliance(TBA_Auth_Id, TBA_Auth_Secret, TBA_eventKey)
+
+        if response.status_code == 200:
+            self.button_TBA.setText('TBA API Verified!')
+            self.button_TBA.setStyleSheet('color: green')
+            self.button_TBA.repaint()
+            self.tab.tabBar().setTabTextColor(6, QColor('green'))
+        else:
+            self.button_TBA.setText('Issue with TBA API!')
+            self.button_TBA.setStyleSheet('color: red')
+            self.button_TBA.repaint()
+
+    
     def handleYouTube(self):
         self.textYouTube.setText('<font color="aqua">Authenticate using browser...</font>')
         self.textYouTube.repaint()
@@ -411,6 +458,11 @@ class MainWindow(QWidget):
                     'matchID' : self.match_type.currentText()[0] + self.match_number_ref.text(),
                     'matchTime' : (self.match_timeMin, self.match_timeSec)
 
+                },
+                'TBA' : {
+                    'Auth_Id' : self.TBA_AuthID.text(),
+                    'Auth_Secret': self.TBA_AuthSecret.text(),
+                    'eventKey': self.TBA_eventCode.text()
                 }
             }
 
