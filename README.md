@@ -7,9 +7,11 @@ A python script (with GUI) for the automated processing of (long) livestream rec
 3. Combines those chunks together into match videos
 4. Generates a thumbnail using the match number and teams involved
 5. Uploads the videos to YouTube
+6. Notifies The Blue Alliance of the videos
 
 ## Upcoming Features
-- [ ] Blue Alliance Support
+- [x] Blue Alliance Support
+- [ ] Load a past CONFIG to save on input time
 - [ ] Use Twitch instead of a file for input
 - [ ] Realtime OBS file for input
 - [ ] Better handling of erroneous inputs
