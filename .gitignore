@@ -1,9 +1,12 @@
 # project-specific ignores
 input/*
 output/*
+testing/*
+log/*
 CONFIG
-AUTHENTICATION
+CREDENTIALS
 trial.png
+client_secret.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

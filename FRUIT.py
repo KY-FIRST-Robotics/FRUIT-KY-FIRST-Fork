@@ -15,6 +15,7 @@ from moviepy.editor import VideoFileClip, concatenate_videoclips
 from moviepy.audio.fx.all import audio_fadeout, audio_fadein
 
 # my functions, see python scripts in TOOLS
+from TOOLS.CredentialsPopUp import CredDialog
 from TOOLS.FMS import getMatchesFromFMS
 from TOOLS.YouTube import authenticate_youtube
 from TOOLS.YouTube import upload_video
@@ -94,7 +95,7 @@ class makeTheSauceThread(QThread):
                             "tags": CONFIG['YouTube']['tags'].split(',') + [CONFIG['event']['code'], str(CONFIG['season']['year']), matchID, "trimFRC_BCC"]
                         },
                         "status": {
-                            "privacyStatus": "private"
+                            "privacyStatus": "unlisted"
                         }
                     }
                     
@@ -120,6 +121,7 @@ class MainWindow(QWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.logoSponsorFilepath = None
+        self.videoFilepath = None
 
         '''
         set window title, size and layout
@@ -142,6 +144,14 @@ class MainWindow(QWidget):
         page_welcome.setLayout(layout)
         layout.addRow(QLabel("<h1>FIRST Robotics Uploader from an Indiana Teammate</h1>\n<i>Make each tab green then you're ready to proceed.</i>"))
         layout.addRow(QLabel(bodyText))
+        # select program (FRC/FTC)
+        self.program = QComboBox()
+        self.program.addItems(["FRC", "FTC"])
+        layout.addRow("Select program:", self.program)
+        # set/check credentials via dialog pop-up window
+        self.credentialsButton = QPushButton("Set/Check Credentials", self)
+        self.credentialsButton.clicked.connect(lambda: CredDialog(self).exec())
+        layout.addRow(self.credentialsButton)
 
         
         '''
@@ -441,7 +451,7 @@ class MainWindow(QWidget):
                     'forceDetails' : bool(self.thumbnail_force.isChecked())
                 },
                 'season' : {
-                    'year' : int(self.season_year.text()),
+                    'year' : -1 if self.season_year.text() == '' else int(self.season_year.text()),
                     'secondsBeforeStart' : float(self.season_secondsBefore.text()),
                     'secondsOfMatch' : float(self.season_matchDuration.text()), #auto + bell (~5) + teleop
                     'secondsAfterEnd' : float(self.season_secondsAfterEnd.text()),
@@ -457,7 +467,6 @@ class MainWindow(QWidget):
                     'filePath' : self.videoFilepath,
                     'matchID' : self.match_type.currentText()[0] + self.match_number_ref.text(),
                     'matchTime' : (self.match_timeMin, self.match_timeSec)
-
                 },
                 'TBA' : {
                     'Auth_Id' : self.TBA_AuthID.text(),

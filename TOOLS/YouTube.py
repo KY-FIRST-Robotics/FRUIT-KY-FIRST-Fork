@@ -31,7 +31,7 @@ def upload_video(youtube, media_file:str, request_body:dict, thumbnail: str=None
         media_file (str): path to video file
         request_body (dict): document following YouTube format for upload
         thumbnail (str): path to thumbnail file
-        playlistID (str): YouTube playlist ID to add video to
+        playlistID (str): YouTube playlist ID to add video to (everything after https://www.youtube.com/playlist?list=)
 
     Returns:
         responseID : successfully uploaded YouTube video ID

@@ -9,3 +9,6 @@ base64
 PIL
 google_auth_oauthlib
 googleapiclient
+subprocess
+math
+streamlink
