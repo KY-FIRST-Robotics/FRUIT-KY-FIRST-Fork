@@ -3,7 +3,7 @@ import requests     # API data request
 import base64       # API hashing
 import datetime     # str conversion
 
-translateSymbol = {'M': 'Playoffs', 'Q': 'Quals', 'F': 'Finals'}
+translateSymbol = {'Q': 'Quals', 'P': 'Playoffs', 'F': 'Finals'}
 
 # CREDENTIALS (dict): credentials from https://frc-events.firstinspires.org/services/api, contains "FRC_username" and "FRC_key" entries
 with open("CREDENTIALS", "r") as file:
@@ -27,40 +27,6 @@ def prepareHeadersFMS(username, authKey):
 
     return headers
 
-def getMatchesFromFMS(year:int, eventCode:str):
-    """Connects to FRC FMS records for an event and stores them
-
-    Args:
-        year (int): season year
-        eventCode (str): event code
-
-    Returns:
-        matches (dict): {'X0': {start': datetime.datetime, 'post': datetime.datetime, 'teamsRed': list(int), 'teamsBlue': list(int)]}
-
-    """
-
-    # define API url and request headers, based on: https://frc-api-docs.firstinspires.org/#733f4607-ab40-4e00-b3e1-36cfb1a2e77e
-    url = 'https://frc-api.firstinspires.org/v3.0/'+str(year)+'/matches/'+eventCode
-    headers = prepareHeadersFMS(CREDENTIALS['FRC_username'], CREDENTIALS['FRC_key'])
-
-    # make the API call
-    responseQuals = requests.get(url+'?tournamentLevel=Qualification', headers=headers, verify=False)
-    responsePlayoffs = requests.get(url+'?tournamentLevel=Playoff', headers=headers, verify=False)
-
-    # extract the match ID, start time, post time
-    matches = rewrapMatches(responseQuals.json()['Matches'], 'Q')
-
-    matchesPlayoffs = rewrapMatches(responsePlayoffs.json()['Matches'], 'M')
-    matches.update(matchesPlayoffs)
-
-    matchesFinals = rewrapMatches(responsePlayoffs.json()['Matches'], 'F', len(matchesPlayoffs.keys()))
-    matches.update(matchesFinals)
-
-    # sort by start time
-    matches = {k: v for k, v in sorted(matches.items(), key=lambda item: item[1]['start'])}
-
-    return matches
-
 # sometimes milliseconds isn't reported in FMS - use this to fix that
 def str2dte(timeString):
     """Converts datetime string that may contain decimal seconds
@@ -79,86 +45,94 @@ def str2dte(timeString):
     
     return timeObject
 
-def rewrapMatches(matchesFMS, matchChar:str, offset=0):
-    """Reformats FRC FMS response into a dict of matches
-
-    Args:
-        isQuals (bool): are the matches qualifications?
-
-    Returns:
-        dict: match information and times in datetime.datetime
-    
-    ToDo:
-        * Combine with rewrapMatchesFTC
-
-    """
-    return {match['description'][0]+str(match['matchNumber']-offset):  
-        {'start':str2dte(match['actualStartTime']), 'post':str2dte(match['postResultTime']),
-        'teamsRed': [team['teamNumber'] for team in match['teams'] if team['station'][0]=='R'],
-        'teamsBlue': [team['teamNumber'] for team in match['teams'] if team['station'][0]=='B']} 
-        for match in matchesFMS if (match['description'][0] == matchChar)*(match['actualStartTime'] != None)*(match['postResultTime'] != None)}
-
-def rewrapMatchesFTC(matchesFMS, isQuals=True):
-    """Reformats FTC FMS response into a dict of matches
-
-    Args:
-        isQuals (bool): are the matches qualifications?
-
-    Returns:
-        dict: match information and times in datetime.datetime
-
-    """
-    if isQuals:
-        return {match['tournamentLevel'][0]+str(match['matchNumber']):  
-            {'start':str2dte(match['actualStartTime']), 'post':str2dte(match['postResultTime']),
-            'teamsRed': [team['teamNumber'] for team in match['teams'] if team['station'][0]=='R'],
-            'teamsBlue': [team['teamNumber'] for team in match['teams'] if team['station'][0]=='B']} 
-            for match in matchesFMS if (match['actualStartTime'] != None)*(match['postResultTime'] != None)}
-    else:
-        return {match['tournamentLevel'][0]+str(match['series']):  
-            {'start':str2dte(match['actualStartTime']), 'post':str2dte(match['postResultTime']),
-            'teamsRed': [team['teamNumber'] for team in match['teams'] if team['station'][0]=='R'],
-            'teamsBlue': [team['teamNumber'] for team in match['teams'] if team['station'][0]=='B']} 
-            for match in matchesFMS if (match['actualStartTime'] != None)*(match['postResultTime'] != None)}
-
-
-def getMatchesForFTC(year:int, eventCode:str, username:str, authKey:str):
-    """Connects to FTC FMS records for an event and stores them
+def getMatchesFromFMS(year:int, eventCode:str, program:str, authUsr:str=CREDENTIALS['FRC_username'], authKey:str=CREDENTIALS['FRC_key']):
+    """Connects to FRC FMS records for an event and stores them
 
     Args:
         year (int): season year
         eventCode (str): event code
-        username (str): username for ftc-events.firstinspires.org
-        authKey (str): authKey provided from related service
+        program (str): FIRST program; 'FRC' or 'FTC'
+        authUsr (str): username for respective FRC/FTC api
+        authKey (str): key for respective FRC/FTC api
 
     Returns:
-        matches (dict): {'X0': {start': datetime.datetime, 'post': datetime.datetime, 'teamsRed': list(int), 'teamsBlue': list(int)]}
+        matchesRaw (list): [{'X0': {start': datetime.datetime, 'post': datetime.datetime, 'teamsRed': list(int), 'teamsBlue': list(int)]}, ...]
 
     """
+    # enforce program input
+    if program not in ('FRC', 'FTC'):
+        raise ValueError(f"Invalid input: {program}, must be 'FRC' or 'FTC'.")
+
     # define API url and request headers, based on: https://frc-api-docs.firstinspires.org/#733f4607-ab40-4e00-b3e1-36cfb1a2e77e
-    url = 'http://ftc-api.firstinspires.org/v2.0/'+str(year)+'/matches/'+eventCode
-    headers = prepareHeadersFMS(username, authKey)
+    if program == 'FRC':
+        url = 'https://frc-api.firstinspires.org/v3.0/'+str(year)+'/matches/'+eventCode
+    elif program == 'FTC':
+        url = 'http://ftc-api.firstinspires.org/v2.0/'+str(year)+'/matches/'+eventCode
+    headers = prepareHeadersFMS(authUsr, authKey)
 
-    # make the API call
-    responseQuals = requests.get(url+'?tournamentLevel=Qualification', headers=headers)
-    responsePlayoffs = requests.get(url+'?tournamentLevel=Playoff', headers=headers)
+    # make the API call (separately to prevent stale results)
+    responseQuals = requests.get(url+'?tournamentLevel=Qualification', headers=headers, verify=False)
+    responsePlayoffs = requests.get(url+'?tournamentLevel=Playoff', headers=headers, verify=False)
 
-    # extract the match ID, start time, post time
-    matches = rewrapMatchesFTC(responseQuals.json()['matches'], True)
+    # combine the two match calls together
+    if program == 'FRC':
+        matchesRaw = responseQuals.json()['Matches'] + responsePlayoffs.json()['Matches']
+    elif program == 'FTC':
+        matchesRaw = responseQuals.json()['matches'] + responsePlayoffs.json()['matches']
+    
+    return matchesRaw
 
-    matchesPlayoffs = rewrapMatchesFTC(responsePlayoffs.json()['matches'], False)
-    matches.update(matchesPlayoffs)
+def rewrapMatches(matchesRaw:list, program:str):
+    """Reformats FMS matches response into a list of match dictionaries
 
-    # sort by start time
-    matches = {k: v for k, v in sorted(matches.items(), key=lambda item: item[1]['start'])}
+    Args:
+        matchesRaw (list): are the matches qualifications?
+        program (str): FIRST program; 'FRC' or 'FTC'
 
-    return matches
+    Returns:
+        matchesSorted (list): [{'X0': {start': datetime.datetime, 'post': datetime.datetime, 'teamsRed': list(int), 'teamsBlue': list(int)]}, ...]
+    
+    """
 
-def livestreamDescription(matches:dict, originMin:int, originSec:int,  originMatchID:str = 'Q1'):
+    # reorganize them for future work
+    matchesCleaned = []
+    for match in matchesRaw:
+        if (match['actualStartTime'] != None)*(match['postResultTime'] != None):
+            matchDict = {}
+            # match ID (special things for finals)
+            if program == 'FRC':
+                if 'Final' in match['description']:
+                    playoffsCount = len([match['matchNumber'] for match in matchesRaw if ((match['tournamentLevel']=='Playoff')and not('Final' in match['description']))])
+                    matchDict['id'] = 'F'+str(match['matchNumber']-playoffsCount)
+                else:
+                    matchDict['id'] = match['tournamentLevel'][0]+str(match['matchNumber'])
+            elif program == 'FTC':
+                if match['tournamentLevel'][0] == 'P':
+                    matchDict['id'] = match['tournamentLevel'][0]+str(match['series'])
+                else:
+                    matchDict['id'] = match['tournamentLevel'][0]+str(match['matchNumber'])
+            # match information
+            matchDict['start'] = str2dte(match['actualStartTime'])
+            matchDict['post'] = str2dte(match['postResultTime'])
+            matchDict['teamsRed'] = [team['teamNumber'] for team in match['teams'] if team['station'][0]=='R']
+            matchDict['teamsBlue'] = [team['teamNumber'] for team in match['teams'] if team['station'][0]=='B']
+            # replay tag bool
+            if program == 'FRC':
+                matchDict['isReplay'] = match['isReplay']
+            else:
+                matchDict['isReplay'] = None
+            matchesCleaned.append(matchDict)
+
+    # sort the matches by start time
+    matchesSorted = sorted(matchesCleaned, key=lambda x: x["start"])
+
+    return matchesSorted
+
+def livestreamDescription(matches:list, originMin:int, originSec:int,  originMatchID:str = 'Q1'):
     """Generates a string that can be placed in the description of a YouTube livestream recording to provide timestamps for matches
 
     Args:
-        matches (dict): match info dictionary
+        matches (list): list of match info dictionaries
         originMin (int): start time of origin match (minutes part)
         originSec (int): start time of origin match (seconds part)
         originMatchID (str): origin match string identifier
@@ -166,18 +140,22 @@ def livestreamDescription(matches:dict, originMin:int, originSec:int,  originMat
     Returns:
         str : youtube session
     """
+    # prepare output string with header
     desc = '== Matches ==\n'
 
-    start = datetime.timedelta(minutes=originMin, seconds=originSec-3)
+    # convert origin input time (subtract 3 for MC countdown)
+    origin = datetime.timedelta(minutes=originMin, seconds=originSec-3)
 
+    # verify user input is real match
     try:
-        matches[originMatchID]['start']
-    except KeyError:
+        originStart = [match for match in matches if match["id"] == originMatchID][0]['start']
+    except IndexError:
         raise KeyError('match ID does not exist')
 
-    for matchID, matchInfo in matches.items():
-        desc += str(matchInfo['start'] - matches[originMatchID]['start'] + start).split(".")[0] + " " + matchID + "\n"
+    # add the match ID and match start time to output string
+    for match in matches:
+        desc += str(match['start'] - originStart + origin).split(".")[0] + " " + match['id'] + "\n"
 
+    # share the results
     print(desc)
-    
     return desc

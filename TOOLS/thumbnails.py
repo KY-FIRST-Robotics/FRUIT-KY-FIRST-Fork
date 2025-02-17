@@ -1,25 +1,22 @@
 from PIL import Image, ImageDraw, ImageFont # thumbnails
 
-translateSymbol = {'M': 'Playoffs', 'Q': 'Quals', 'F': 'Finals'}
+translateSymbol = {'Q': 'Quals', 'P': 'Playoffs', 'F': 'Finals'}
 
 # Define fonts and sizes used in the thumbnail
 fontTeamNumbers = ImageFont.truetype('arialbd.ttf', 80)
 fontMatchNumbers = ImageFont.truetype('arial.ttf', 300)
 fontExtraInfo = ImageFont.truetype('arial.ttf', 100)
 
-# Import logo of program (typ FRC)
-logoProgram = Image.open('./FIRSTRobotics_IconVert_RGB.png', 'r').convert("RGBA")
-
 # Define how team numbers are layed out
 boxShape = (100, 300)   # height, width of boxes (px)
 boxSpace = (50, 100)    # hspace, wspace between boxes (px)
 
-def generateThumbnail(matchID:str, matchInfo:dict, eventDetails: str=None, sponsorPath: str=None, name: str=None):
+def generateThumbnail(matchInfo:dict, programPath: str='./FIRSTRobotics_IconVert_RGB.png', eventDetails: str=None, sponsorPath: str=None, name: str=None):
     """Creates a 1920x1080px thumbnail image for YouTube match video
 
-    Args:
-        matchID (str): a combination of match type and number (Q23 = Quals 23, M5 = Playoffs 5, F1 = Finals 1)
-        matchInfo (dict): data about the match
+    Args: 
+        matchInfo (dict): data about the match, includes 'id' which is a combination of match type and number (Q23 = Quals 23, P5 = Playoffs 5, F1 = Finals 1) as well as 'teamsRed' & 'teamsBlue' which contain a list of int(s)
+        programPath (str): filepath to program image (.jpg or .png)
         eventDetails (str): building name \\n city \\n date
         sponsorPath (str): filepath to sponsor image (.jpg or .png)
         name (str): file name override, use None to follow naming convention 
@@ -32,8 +29,12 @@ def generateThumbnail(matchID:str, matchInfo:dict, eventDetails: str=None, spons
     # Create blank thumbnail
     thumbnail = Image.new("RGBA", (1920, 1080), "white")
 
-    # Add in program and sponsor logo
-    thumbnail.alpha_composite(logoProgram, (125,75//2))
+    # Add in program logo
+    if programPath != None:
+        logoProgram = Image.open(programPath, 'r').convert("RGBA")
+        thumbnail.alpha_composite(logoProgram, (125,75//2))
+
+    # Add in sponsor logo
     if sponsorPath != None:
         logoSponsorRaw = Image.open(sponsorPath, 'r').convert("RGBA")
 
@@ -59,7 +60,7 @@ def generateThumbnail(matchID:str, matchInfo:dict, eventDetails: str=None, spons
             draw.text((1080+offset+(boxShape[1]//2), 75+(boxShape[0]+boxSpace[0])*i+(boxShape[0]//2)), str(team), font=fontTeamNumbers, fill='white', anchor="mm")
 
     # Draw match label + number
-    matchStyle = (str(translateSymbol[matchID[0]]).upper(), str(matchID[1:]))
+    matchStyle = (str(translateSymbol[matchInfo['id'][0]]).upper(), str(matchInfo['id'][1:]))
     draw.text((int(1920*1/4), int(1080*3/4)-100), matchStyle[0], font=fontTeamNumbers, fill='black', anchor="md")
     draw.text((int(1920*1/4), int(1080*3/4)-100), matchStyle[1], font=fontMatchNumbers, fill='black', anchor="mt")
 

@@ -19,7 +19,8 @@ from moviepy.audio.fx.all import audio_fadeout, audio_fadein
 from TOOLS.CredentialsPopUp import CredDialog
 from TOOLS.YouTube import authenticate_youtube
 from TOOLS.Twitch import covertID2Username
-from TOOLS.FMS import getMatchesForFTC
+from TOOLS.FMS import getMatchesFromFMS
+from TOOLS.FMS import rewrapMatches
 from TOOLS.Twitch import getLatestTwitchVODs
 from TOOLS.Twitch import durationStr2Sec
 from TOOLS.Twitch import downloadTwitchClip
@@ -166,12 +167,14 @@ class Worker(QObject):
             while not self.stop_event.is_set():
                 # obtain match information from FMS
                 if self.user_data['program'] == 'FRC':
-                    raise SystemError('I have not built this yet!')
+                    matchesRaw = getMatchesFromFMS(self.user_data['event_year'], self.user_data['event_code'], 'FRC', CREDENTIALS['FRC_username'], CREDENTIALS['FRC_key'])
+                    matches = rewrapMatches(matchesRaw, "FTC")
                 elif self.user_data['program'] == 'FTC':
-                    matches = getMatchesForFTC(self.user_data['event_year'], self.user_data['event_code'], CREDENTIALS['FRC_username'], CREDENTIALS['FRC_key'])
+                    matchesRaw = getMatchesFromFMS(self.user_data['event_year'], self.user_data['event_code'], 'FTC', CREDENTIALS['FTC_username'], CREDENTIALS['FTC_key'])
+                    matches = rewrapMatches(matchesRaw, "FTC")
                 
                 # reformat into list and remove ones that are too fresh
-                matches_list = [{'id': k} | v for k,v in matches.items() if (datetime.datetime.now() - v['post']).total_seconds() >= 50]
+                matches_list = [match for match in matches if (datetime.datetime.now() - match['post']).total_seconds() >= 50]
 
                 # determine which matches have not already been processed
                 matches_new = listNotInLog('log/seek.txt', matches_list)

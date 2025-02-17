@@ -17,22 +17,22 @@ from moviepy.audio.fx.all import audio_fadeout, audio_fadein
 # my functions, see python scripts in TOOLS
 from TOOLS.CredentialsPopUp import CredDialog
 from TOOLS.FMS import getMatchesFromFMS
+from TOOLS.FMS import rewrapMatches
 from TOOLS.YouTube import authenticate_youtube
 from TOOLS.YouTube import upload_video
 from TOOLS.thumbnails import generateThumbnail
 from TOOLS.TBA import postTheBlueAlliance
 from TOOLS.TBA import translateMatchString
 
-# prepare related directories
-if not os.path.exists('input/'):
-    os.makedirs('input/')
-if not os.path.exists('output/'):
-    os.makedirs('output/')
-if not os.path.exists('output/thumbnails/'):
-    os.makedirs('output/thumbnails/')
+# create directories/files if missing
+os.makedirs('log/', exist_ok=True)
+open('log/seek.txt', 'a+').close()
+open('log/send.txt', 'a+').close()
+os.makedirs('output/', exist_ok=True)
+os.makedirs('output/thumbnails', exist_ok=True)
 
 # translator for symbols
-translateSymbol = {'M': 'Playoffs', 'Q': 'Quals', 'F': 'Finals'}
+translateSymbol = {'M': 'Playoffs', 'P': 'Playoffs', 'Q': 'Quals', 'F': 'Finals'}
 
 class makeTheSauceThread(QThread):
     result_ready = pyqtSignal(int)
@@ -50,13 +50,12 @@ class makeTheSauceThread(QThread):
 
         # get information about the video to determine which matches it contains
         fileDuration = VideoFileClip(CONFIG['video']['filePath']).duration
-        fileMatchStart = self.matches[CONFIG['video']['matchID']]['start']
+        fileMatchStart = [match for match in self.matches if match["id"] == CONFIG['video']['matchID']][0]['start']
         fileTimeEnd = fileMatchStart+datetime.timedelta(seconds=fileDuration)
         fileSecStart = (CONFIG['video']['matchTime'][0]*60)+CONFIG['video']['matchTime'][1]
 
         # which matches are contained in the input video?
-        matchesInFile = {k: v for k, v in self.matches.items() if (v['start'] >= fileMatchStart)*(v['post'] < fileTimeEnd)}
-        print(len(list(matchesInFile.keys())), 'matches in file (expecting 39 or 40)')
+        matchesInFile = {match['id']: match for match in self.matches if (match['start'] >= fileMatchStart)*(match['post'] < fileTimeEnd)}
 
         # clip each match
         for matchID, matchInfo in matchesInFile.items():
@@ -92,7 +91,7 @@ class makeTheSauceThread(QThread):
                             "title": outputFileName.split('.mp4')[0],
                             "description": CONFIG['YouTube']['description'],
                             "categoryId": "28",  # Category ID for "Science & Technology"
-                            "tags": CONFIG['YouTube']['tags'].split(',') + [CONFIG['event']['code'], str(CONFIG['season']['year']), matchID, "trimFRC_BCC"]
+                            "tags": CONFIG['YouTube']['tags'].split(',') + [CONFIG['event']['code'], str(CONFIG['season']['year']), matchID, "FRUIT_BCC"] + [CONFIG['program'], {'FRC':'FIRST Robotics Competition', 'FTC':'FIRST Tech Challenge'}[CONFIG['program']]]
                         },
                         "status": {
                             "privacyStatus": "unlisted"
@@ -192,9 +191,9 @@ class MainWindow(QWidget):
         self.video_description = QPlainTextEdit("Footage of this event is courtesy of FIRST Indiana Robotics.\n\nFollow us on Twitter (@FIRSTINRobotics), Facebook (FIRST Indiana Robotics), and Twitch (FIRSTINRobotics).\n\nFor more information and future event schedules, visit our website: https://www.firstindianarobotics.org")
         layout.addRow('Description:', self.video_description)
         # Tags
-        self.video_tags = QLineEdit('FIRST Robotics Competition, FRC, FIRST Indiana Robotics, FIN')
+        self.video_tags = QLineEdit('FIRST Indiana Robotics, FIN')
         layout.addRow(QLabel('Tags (comma-delimited) :'), self.video_tags)
-        layout.addRow(QLabel('<i>program will automatically add year & event code</i>'))
+        layout.addRow(QLabel('<i>program will automatically add year, event code, and program (FRC/FTC)</i>'))
         # Playlist
         self.video_playlist = QLineEdit("https://www.youtube.com/playlist?list=")
         layout.addRow('Playlist URL (optional):', self.video_playlist)
@@ -239,6 +238,7 @@ class MainWindow(QWidget):
         page_timings = QWidget(self)
         layout = QFormLayout()
         page_timings.setLayout(layout)
+        layout.addRow(QLabel('<b>Define how to chop up the livestream into matches</b>'))
         self.season_secondsBefore = QLineEdit('3'); layout.addRow('Seconds Before :', self.season_secondsBefore)
         self.season_matchDuration = QLineEdit('155'); layout.addRow('Match Duration :', self.season_matchDuration)
         self.season_secondsAfterEnd = QLineEdit('5'); layout.addRow('Seconds After End :', self.season_secondsAfterEnd)
@@ -247,14 +247,21 @@ class MainWindow(QWidget):
         layout.addRow(QLabel('<i>These should add to 179.94 to get a 3:00 video on YouTube</i>'))
 
         '''
-        VIDEO FILE
-         - select video file
+        VIDEO INPUT
+         - select video input (live/static)
          - provide reference match (# and time)
          - watch 4 seconds of clip
         '''
         page_video = QWidget(self)
         layout = QFormLayout()
         page_video.setLayout(layout)
+        layout.addRow(QLabel('<b>Provide twitch livestream OR static video file</b>'))
+        self.twitchUser = QLineEdit('firstinrobotics'); layout.addRow('Twitch User:', self.twitchUser)
+        self.twitch_button = QPushButton("Test Twitch Connection")
+        self.twitch_button.setStyleSheet('color: red')
+        #self.twitch_button.clicked.connect(self.test_twitch)
+        layout.addRow(self.twitch_button)
+        layout.addRow(QLabel('⸻ or ⸻'))
         self.mp4_VOD = QPushButton('Select File')
         self.mp4_VOD.clicked.connect(self.getFileVideo)
         layout.addRow('Video File:', self.mp4_VOD)
@@ -262,9 +269,7 @@ class MainWindow(QWidget):
         self.match_type = QComboBox(); self.match_type.addItems(["Q = Quals", "M = Playoffs", "F = Finals"])
         layout.addRow('First Match Type:', self.match_type)
         self.match_number_ref = QLineEdit(); layout.addRow('First Match Number:', self.match_number_ref)
-        self.timestamp_label = QLabel("Enter timestamp (mm:ss):")
-        self.timestamp_input = QLineEdit()
-        layout.addRow('Enter timestamp (mm:ss):', self.timestamp_input)
+        self.timestamp_input = QLineEdit(); layout.addRow('Enter timestamp (mm:ss):', self.timestamp_input)
         # Create a video widget and add it to the layout
         self.video_widget = QVideoWidget()
         self.video_widget.setMinimumSize(480, 270)
@@ -382,9 +387,16 @@ class MainWindow(QWidget):
         text.setText('<font color="aqua">Loading event from FMS...</font>')
         text.repaint()
 
+        with open("CREDENTIALS", "r") as file:
+            CREDENTIALS = json.load(file) # contains API credentials
+        
         try:
-            self.matches = getMatchesFromFMS(year, eventCode)
-            text.setText('<font color="green">'+str(len(self.matches.keys()))+' matches found for '+eventCode+'.</font>')
+            if self.program.currentText() == 'FRC':
+                matchesRaw = getMatchesFromFMS(year, eventCode, self.program.currentText(), CREDENTIALS['FRC_username'], CREDENTIALS['FRC_key'])
+            elif self.program.currentText() == 'FTC':
+                matchesRaw = getMatchesFromFMS(year, eventCode, self.program.currentText(), CREDENTIALS['FTC_username'], CREDENTIALS['FTC_key'])
+            self.matches = rewrapMatches(matchesRaw, self.program.currentText())
+            text.setText('<font color="green">'+str(len(self.matches))+' matches found for '+eventCode+'.</font>')
             self.tab.tabBar().setTabTextColor(1, QColor('green'))
         except json.JSONDecodeError:
             text.setText('<font color="red">Event does not exist!</font>')
@@ -420,22 +432,26 @@ class MainWindow(QWidget):
         image.setText('<font color="aqua">Generating thumbnail...</font>')
         image.repaint()
 
-        typMatchNumb = {'Q':70, 'M':13, 'F':3}
-        matchType = random.choices(['Q', 'M', 'F'], [0.8, 0.15, 0.05])[0]
-        matchNumb = random.randint(1, typMatchNumb[matchType])
-        matchID = matchType+str(matchNumb)
+        typMatchNumb = {'Q':70, 'P':13, 'F':3}
+        matchType = random.choices(['Q', 'P', 'F'], [0.8, 0.15, 0.05])[0]
+        matchNum = random.randint(1, typMatchNumb[matchType])
 
         teams = [random.randint(1, 11000) for x in range(6)]
-        matchInfo = {'start':datetime.datetime.now(), 'post': datetime.datetime.now()+datetime.timedelta(seconds=155), 'teamsRed': teams[0:3], 'teamsBlue' : teams[3:6]}
+        matchInfo = {'id': matchType+str(matchNum), 'start':datetime.datetime.now(), 'post': datetime.datetime.now()+datetime.timedelta(seconds=155), 'teamsRed': teams[0:3], 'teamsBlue' : teams[3:6]}
 
         eventDetails = data[0]+"\n"+data[1]+"\n"+data[2]
 
+        if self.program.currentText() == 'FRC':
+            programImagePath = './FIRSTRobotics_IconVert_RGB.png'
+        elif self.program.currentText() == 'FTC':
+            programImagePath = './FIRSTTech_IconVert_RGB.png'
+
         if forceText:
-            generateThumbnail(matchID, matchInfo, eventDetails, None, 'trial')
+            generateThumbnail(matchInfo, programImagePath, eventDetails, None, 'trial')
         elif self.logoSponsorFilepath != None:
-            generateThumbnail(matchID, matchInfo, None, self.logoSponsorFilepath, 'trial')
+            generateThumbnail(matchInfo, programImagePath, None, self.logoSponsorFilepath, 'trial')
         else:
-            generateThumbnail(matchID, matchInfo, eventDetails, None, 'trial')
+            generateThumbnail(matchInfo, programImagePath, eventDetails, None, 'trial')
         
         image.setPixmap(QPixmap('trial.png').scaled(QSize(424, 240)))
         self.tab.tabBar().setTabTextColor(3, QColor('green'))
@@ -443,6 +459,7 @@ class MainWindow(QWidget):
     def bakeCONFIG(self, button):
         try:
             CONFIG = {
+                'program' : self.program.currentText(),
                 'event' : {
                     'code' : self.event_code.text(),
                     'name' : self.event_name.text(),

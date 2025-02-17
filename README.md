@@ -14,4 +14,5 @@ A python script (with GUI) for the automated processing of (long) livestream rec
 - [X] Use Twitch instead of a file for input
 - [ ] Load a past CONFIG to save on input time
 - [ ] Better handling of erroneous inputs
+- [ ] Update up from Python 3.12.2
 - [ ] Cool logo
