@@ -11,7 +11,7 @@ fontExtraInfo = ImageFont.truetype('arial.ttf', 100)
 boxShape = (100, 300)   # height, width of boxes (px)
 boxSpace = (50, 100)    # hspace, wspace between boxes (px)
 
-def generateThumbnail(matchInfo:dict, programPath: str='./FIRSTRobotics_IconVert_RGB.png', eventDetails: str=None, sponsorPath: str=None, name: str=None):
+def generateThumbnail(matchInfo:dict, programPath: str='./images/FIRSTRobotics_IconVert_RGB.png', eventDetails: str=None, sponsorPath: str=None, name: str=None):
     """Creates a 1920x1080px thumbnail image for YouTube match video
 
     Args: 
@@ -32,7 +32,8 @@ def generateThumbnail(matchInfo:dict, programPath: str='./FIRSTRobotics_IconVert
     # Add in program logo
     if programPath != None:
         logoProgram = Image.open(programPath, 'r').convert("RGBA")
-        thumbnail.alpha_composite(logoProgram, (125,75//2))
+        widthProgram, heightProgram = logoProgram.size
+        thumbnail.alpha_composite(logoProgram, (int(1920*3/4)-(widthProgram//2),int(1080*3/4)-(heightProgram//2)))
 
     # Add in sponsor logo
     if sponsorPath != None:
@@ -44,14 +45,14 @@ def generateThumbnail(matchInfo:dict, programPath: str='./FIRSTRobotics_IconVert
         logoSponsor = logoSponsorRaw.resize((int(widthSponsor*logoScale),int(heightSponsor*logoScale)))
 
         widthSponsor, heightSponsor = logoSponsor.size
-        thumbnail.alpha_composite(logoSponsor, (int(1920*3/4)-(widthSponsor//2),int(1080*3/4)-(heightSponsor//2)))
+        thumbnail.alpha_composite(logoSponsor, (int(1920*1/4)-(widthSponsor//2),int(1080*1/4)-(heightSponsor//2)))
 
     # Prepare thumbnail to be drawn on
     draw = ImageDraw.Draw(thumbnail)
 
     # Add event location + dates
     if eventDetails != None:
-        draw.multiline_text((int(1920*3/4), int(1080*3/4)), eventDetails, font=fontExtraInfo, fill='black', anchor="mm", align="center")
+        draw.multiline_text((int(1920*1/4), int(1080*1/4)), eventDetails, font=fontExtraInfo, fill='black', anchor="mm", align="center")
 
     # Draw alliance boxes and names
     for color, offset, teamNumbers in [('#ED1C24', 0, matchInfo['teamsRed']), ('#0066B3', boxSpace[1]+boxShape[1], matchInfo['teamsBlue'])]:

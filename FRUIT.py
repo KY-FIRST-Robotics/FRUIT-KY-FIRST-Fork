@@ -1,28 +1,32 @@
 # imports for GUI
-from PyQt6.QtWidgets import QApplication, QWidget,  QFormLayout, QGridLayout, QTabWidget, QPushButton, QLineEdit, QPlainTextEdit, QLabel, QFileDialog, QComboBox, QCheckBox
+from PyQt6.QtWidgets import QApplication, QWidget,  QFormLayout, QGridLayout, QTabWidget, QPushButton, QLineEdit, QPlainTextEdit, QLabel, QFileDialog, QComboBox, QCheckBox, QHBoxLayout
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 from PyQt6.QtGui import QPixmap, QColor
-from PyQt6.QtCore import QSize, QUrl, QTimer, QThread, pyqtSignal
+from PyQt6.QtCore import QSize, QUrl, QTimer
+from PyQt6.QtSvgWidgets import QSvgWidget
 
 import random       # random thumbnail generation
 import datetime     # str conversion and timeDelta
 import os           # file IO
 import json         # CONFIG handling
 
-# libraries for splitting and combining video
-from moviepy.editor import VideoFileClip, concatenate_videoclips
-from moviepy.audio.fx.all import audio_fadeout, audio_fadein
-
 # my functions, see python scripts in TOOLS
 from TOOLS.CredentialsPopUp import CredDialog
 from TOOLS.FMS import getMatchesFromFMS
 from TOOLS.FMS import rewrapMatches
 from TOOLS.YouTube import authenticate_youtube
-from TOOLS.YouTube import upload_video
 from TOOLS.thumbnails import generateThumbnail
 from TOOLS.TBA import postTheBlueAlliance
-from TOOLS.TBA import translateMatchString
+from TOOLS.Twitch import covertID2Username
+
+# processes to run on queued threads
+import threading
+from TOOLS.process_queue import watch
+from TOOLS.process_queue import process_queue_seek
+from TOOLS.process_queue import process_queue_build_live
+from TOOLS.process_queue import process_queue_build_static
+from TOOLS.process_queue import process_queue_send
 
 # create directories/files if missing
 os.makedirs('log/', exist_ok=True)
@@ -34,93 +38,15 @@ os.makedirs('output/thumbnails', exist_ok=True)
 # translator for symbols
 translateSymbol = {'M': 'Playoffs', 'P': 'Playoffs', 'Q': 'Quals', 'F': 'Finals'}
 
-class makeTheSauceThread(QThread):
-    result_ready = pyqtSignal(int)
-
-    def __init__(self):
-        super().__init__()
-    
-    def passData(self, matches, YouTube=None):
-        self.matches = matches
-        self.YouTube = YouTube
-    
-    def makeTheSauce(self):
-        with open('CONFIG') as json_file:
-            CONFIG = json.load(json_file)
-
-        # get information about the video to determine which matches it contains
-        fileDuration = VideoFileClip(CONFIG['video']['filePath']).duration
-        fileMatchStart = [match for match in self.matches if match["id"] == CONFIG['video']['matchID']][0]['start']
-        fileTimeEnd = fileMatchStart+datetime.timedelta(seconds=fileDuration)
-        fileSecStart = (CONFIG['video']['matchTime'][0]*60)+CONFIG['video']['matchTime'][1]
-
-        # which matches are contained in the input video?
-        matchesInFile = {match['id']: match for match in self.matches if (match['start'] >= fileMatchStart)*(match['post'] < fileTimeEnd)}
-
-        # clip each match
-        for matchID, matchInfo in matchesInFile.items():
-            print('Starting:'+matchID)
-
-            # determine video timestamps of notable events
-            secStart = (matchInfo['start'] - fileMatchStart).total_seconds() + fileSecStart 
-            secPost = (matchInfo['post'] - fileMatchStart).total_seconds() + fileSecStart
-
-            # define output filename
-            outputFileName = str(CONFIG['season']['year'])+' '+CONFIG['event']['name']+' '+translateSymbol[matchID[0]]+' '+matchID[1:]+'.mp4'
-
-            # if the file does not already exist, write one
-            if not os.path.exists('output/'+outputFileName):
-                print(matchID+' did not exist!')
-                with VideoFileClip(CONFIG['video']['filePath']) as video:
-                    # generate it's thumbnail
-                    thumbnailLoc = generateThumbnail(matchID, matchInfo, CONFIG['event']['details'])
-
-                    # clip the match and the scores, adding audio fades to taste
-                    match = audio_fadein(video.subclip(secStart - CONFIG['season']['secondsBeforeStart'], secStart + CONFIG['season']['secondsOfMatch'] + CONFIG['season']['secondsAfterEnd']), 0.5)
-                    scores = audio_fadeout(video.subclip(secPost + CONFIG['season']['secondsBeforePost'], secPost + CONFIG['season']['secondsAfterPost']), 2)
-
-                    # merge together match and scores
-                    final = concatenate_videoclips([match, scores])
-
-                    # save the results as a file
-                    final.write_videofile('output/'+outputFileName, audio_codec='aac')
-
-                    # prepare YouTube title, description, tags
-                    request_body = {
-                        "snippet": {
-                            "title": outputFileName.split('.mp4')[0],
-                            "description": CONFIG['YouTube']['description'],
-                            "categoryId": "28",  # Category ID for "Science & Technology"
-                            "tags": CONFIG['YouTube']['tags'].split(',') + [CONFIG['event']['code'], str(CONFIG['season']['year']), matchID, "FRUIT_BCC"] + [CONFIG['program'], {'FRC':'FIRST Robotics Competition', 'FTC':'FIRST Tech Challenge'}[CONFIG['program']]]
-                        },
-                        "status": {
-                            "privacyStatus": "unlisted"
-                        }
-                    }
-                    
-                    # upload to YouTube
-                    videoID = upload_video(self.YouTube, 'output/'+outputFileName, request_body, thumbnailLoc, playlistID=CONFIG['YouTube']['playlist'])
-
-                    # post video to TBA
-                    data = {translateMatchString(matchID): videoID}
-                    response = postTheBlueAlliance(CONFIG['TBA']['Auth_Id'], CONFIG['TBA']['Auth_Secret'], CONFIG['TBA']['eventKey'], data)
-
-                    if response.status_code != 200:
-                        print('Issue with TBA API for some reason?')
-
-                    print('Done:'+matchID+' ('+videoID+')')
-            
-        return len(matchesInFile.items())
-
-    def run(self):
-        result = self.makeTheSauce()
-        self.result_ready.emit(result)
-
 class MainWindow(QWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        #prepare optional arguments
         self.logoSponsorFilepath = None
         self.videoFilepath = None
+        self.twitchUserID = None
+        self.YouTube = None
+        self.stop_event = threading.Event()
 
         '''
         set window title, size and layout
@@ -215,7 +141,7 @@ class MainWindow(QWidget):
         layout.addRow('Sponsor Logo:', self.img_EventSponsor)
         # Verbose event details
         layout.addRow(QLabel('⸻ or ⸻'))
-        self.eventLocation = QLineEdit(self);  layout.addRow('Location:', self.eventLocation)
+        self.eventBuilding = QLineEdit(self);  layout.addRow('Building:', self.eventBuilding)
         self.eventCity = QLineEdit(self);  layout.addRow('City:', self.eventCity)
         self.eventDates = QLineEdit(self);  layout.addRow('Dates:', self.eventDates)
         # Force text details over sponsor logo
@@ -224,7 +150,7 @@ class MainWindow(QWidget):
         # Test thumbnail using random generator
         self.image_thumbnail = QLabel('<font color="red">Generate a test thumbnail</font>')
         self.button_thumbnail = QPushButton('Test Thumbnail')
-        self.button_thumbnail.clicked.connect(lambda: self.handleThumbnail([self.eventLocation.text(), self.eventCity.text(), self.eventDates.text()], self.image_thumbnail, self.thumbnail_force.isChecked()))
+        self.button_thumbnail.clicked.connect(lambda: self.handleThumbnail([self.eventBuilding.text(), self.eventCity.text(), self.eventDates.text()], self.image_thumbnail, self.thumbnail_force.isChecked()))
         layout.addRow(self.button_thumbnail, self.image_thumbnail)
 
         '''
@@ -238,13 +164,17 @@ class MainWindow(QWidget):
         page_timings = QWidget(self)
         layout = QFormLayout()
         page_timings.setLayout(layout)
-        layout.addRow(QLabel('<b>Define how to chop up the livestream into matches</b>'))
-        self.season_secondsBefore = QLineEdit('3'); layout.addRow('Seconds Before :', self.season_secondsBefore)
-        self.season_matchDuration = QLineEdit('155'); layout.addRow('Match Duration :', self.season_matchDuration)
-        self.season_secondsAfterEnd = QLineEdit('5'); layout.addRow('Seconds After End :', self.season_secondsAfterEnd)
-        self.season_secondsBeforePost = QLineEdit('-7.25'); layout.addRow('Seconds Before Post :', self.season_secondsBeforePost)
-        self.season_secondsAfterPost = QLineEdit('23.92'); layout.addRow('Seconds After Post :', self.season_secondsAfterPost)
+        layout.addRow(QLabel('<b>Define how to chop up the livestream into matches</b><br><i>Units are in seconds, decimals allowed.</i>'))
+        #2024 values: [3, 155, 5, -7.25, 16.67]
+        self.season_secondsBefore = QLineEdit('3'); layout.addRow('Before Match :', self.season_secondsBefore)
+        self.season_matchDuration = QLineEdit(str(15+5+135)); layout.addRow('Match Duration :', self.season_matchDuration)
+        self.season_secondsAfterEnd = QLineEdit('5'); layout.addRow('After Match :', self.season_secondsAfterEnd)
+        self.season_secondsBeforePost = QLineEdit('-8.06'); layout.addRow('Before Post :', self.season_secondsBeforePost)
+        self.season_secondsAfterPost = QLineEdit('25'); layout.addRow('After Post :', self.season_secondsAfterPost)
         layout.addRow(QLabel('<i>These should add to 179.94 to get a 3:00 video on YouTube</i>'))
+        svg_widget = QSvgWidget('./images/matchTrimDiagram.svg')
+        svg_widget.setFixedSize(QSize(600, 150))
+        layout.addRow(svg_widget)
 
         '''
         VIDEO INPUT
@@ -259,14 +189,14 @@ class MainWindow(QWidget):
         self.twitchUser = QLineEdit('firstinrobotics'); layout.addRow('Twitch User:', self.twitchUser)
         self.twitch_button = QPushButton("Test Twitch Connection")
         self.twitch_button.setStyleSheet('color: red')
-        #self.twitch_button.clicked.connect(self.test_twitch)
+        self.twitch_button.clicked.connect(self.test_twitch)
         layout.addRow(self.twitch_button)
         layout.addRow(QLabel('⸻ or ⸻'))
         self.mp4_VOD = QPushButton('Select File')
         self.mp4_VOD.clicked.connect(self.getFileVideo)
         layout.addRow('Video File:', self.mp4_VOD)
         # reference match details
-        self.match_type = QComboBox(); self.match_type.addItems(["Q = Quals", "M = Playoffs", "F = Finals"])
+        self.match_type = QComboBox(); self.match_type.addItems(["Q = Quals", "P = Playoffs", "F = Finals"])
         layout.addRow('First Match Type:', self.match_type)
         self.match_number_ref = QLineEdit(); layout.addRow('First Match Number:', self.match_number_ref)
         self.timestamp_input = QLineEdit(); layout.addRow('Enter timestamp (mm:ss):', self.timestamp_input)
@@ -331,15 +261,62 @@ class MainWindow(QWidget):
         self.startThreadButton.clicked.connect(self.start_sauce_thread)
         main_layout.addWidget(self.startThreadButton)
 
-        self.thread = makeTheSauceThread()
-        self.thread.result_ready.connect(self.on_sauce_made)
+        '''
+        Status Bar (SEEN, BUILT, SENT)
+        '''
+        status_container = QWidget()
+        status_layout = QHBoxLayout(status_container)
+        
+        self.status_seen = QLabel(" SEEN: X")
+        self.status_built = QLabel("BUILT: X")
+        self.status_sent = QLabel(" SENT: X")
+        
+        status_layout.addWidget(self.status_seen)
+        status_layout.addWidget(self.status_built)
+        status_layout.addWidget(self.status_sent)
+
+        main_layout.addWidget(status_container)
 
         self.show()
     
     def start_sauce_thread(self):
+        # disable the button to prevent double-click
         self.startThreadButton.setEnabled(False)
-        self.thread.passData(self.matches, self.YouTube)
-        self.thread.start()
+
+        # clear the stop event
+        self.stop_event.clear()
+
+        # Clear and entries in send log file that were not finished
+        with open('log/send.txt', 'r') as source_file, open('log/seek.txt', 'w') as destination_file:
+            # Read the contents of the source file and write them to the destination file
+            destination_file.write(source_file.read())
+        
+        with open('log/send.txt', 'r') as file:
+            # Count finished matches
+            count_finished = len([line for line in file if self.CONFIG['event']['code'] in line])
+
+        self.status_seen.setText(f" SEEN: {count_finished}")
+        self.status_built.setText(f"BUILT: {count_finished}")
+        self.status_sent.setText(f" SENT: {count_finished}")
+
+        # load API credentials
+        with open("CREDENTIALS", "r") as file:
+            CREDENTIALS = json.load(file)
+
+        # Create threads for each queue
+        self.thread_seek = threading.Thread(target=process_queue_seek, args=(self.CONFIG, self.stop_event, self.status_seen, CREDENTIALS))
+        if self.CONFIG['video']['type'] == 'live':
+            self.thread_build = threading.Thread(target=process_queue_build_live, args=(self.CONFIG, self.stop_event, self.status_built))
+        elif self.CONFIG['video']['type'] == 'static':
+            self.thread_build = threading.Thread(target=process_queue_build_static, args=(self.CONFIG, self.stop_event, self.status_built, self.matches))
+        self.thread_send = threading.Thread(target=process_queue_send, args=(self.CONFIG, self.stop_event, self.status_sent, self.YouTube))
+
+        # Start the threads
+        if self.CONFIG['video']['type'] == 'live':
+            watch(self.CONFIG['video']['twitchUserID'], self.stop_event, CREDENTIALS)
+        self.thread_seek.start()
+        self.thread_build.start()
+        self.thread_send.start()
 
     def on_sauce_made(self, result):
         self.startThreadButton.setText(f"{result} matches processed!")
@@ -395,12 +372,38 @@ class MainWindow(QWidget):
                 matchesRaw = getMatchesFromFMS(year, eventCode, self.program.currentText(), CREDENTIALS['FRC_username'], CREDENTIALS['FRC_key'])
             elif self.program.currentText() == 'FTC':
                 matchesRaw = getMatchesFromFMS(year, eventCode, self.program.currentText(), CREDENTIALS['FTC_username'], CREDENTIALS['FTC_key'])
+            
             self.matches = rewrapMatches(matchesRaw, self.program.currentText())
-            text.setText('<font color="green">'+str(len(self.matches))+' matches found for '+eventCode+'.</font>')
+            
+            if len(self.matches) > 0:
+                text.setText('<font color="green">'+str(len(self.matches))+' matches found for '+eventCode+'.</font>')
+            else:
+                text.setText('<font color="yellow">'+str(len(self.matches))+' matches found for '+eventCode+'. If event has begun, verify event code.</font>')
+            self.status_seen.setText(f" SEEN: {len(self.matches)}")
+
             self.tab.tabBar().setTabTextColor(1, QColor('green'))
         except json.JSONDecodeError:
             text.setText('<font color="red">Event does not exist!</font>')
             self.tab.tabBar().setTabTextColor(1, QColor('red'))
+    
+    def test_twitch(self):
+        
+        self.twitch_button.setText('Looking for Twitch user...')
+        self.twitch_button.setStyleSheet("color: aqua;")
+        self.twitch_button.repaint()
+
+        with open("CREDENTIALS", "r") as file:
+            CREDENTIALS = json.load(file) # contains API credentials
+        
+        try:
+            self.twitchUserID = covertID2Username(CREDENTIALS['Twitch_clientID'], CREDENTIALS['Twitch_clientSecret'], self.twitchUser.text())
+            self.twitch_button.setText('User found! ID:'+ self.twitchUserID)
+            self.twitch_button.setStyleSheet("color: green;")
+            self.tab.tabBar().setTabTextColor(5, QColor('green'))
+        except IndexError:
+            self.twitch_button.setText("Twitch user not found!")
+            self.twitch_button.setStyleSheet("color: red;")
+            self.tab.tabBar().setTabTextColor(5, QColor('red'))
     
     def handleTBA(self, TBA_Auth_Id, TBA_Auth_Secret, TBA_eventKey):
         self.button_TBA.setText('Testing TBA API...')
@@ -418,7 +421,6 @@ class MainWindow(QWidget):
             self.button_TBA.setText('Issue with TBA API!')
             self.button_TBA.setStyleSheet('color: red')
             self.button_TBA.repaint()
-
     
     def handleYouTube(self):
         self.textYouTube.setText('<font color="aqua">Authenticate using browser...</font>')
@@ -442,18 +444,18 @@ class MainWindow(QWidget):
         eventDetails = data[0]+"\n"+data[1]+"\n"+data[2]
 
         if self.program.currentText() == 'FRC':
-            programImagePath = './FIRSTRobotics_IconVert_RGB.png'
+            programImagePath = './images/FIRSTRobotics_IconVert_RGB.png'
         elif self.program.currentText() == 'FTC':
-            programImagePath = './FIRSTTech_IconVert_RGB.png'
+            programImagePath = './images/FIRSTTech_IconVert_RGB.png'
 
         if forceText:
-            generateThumbnail(matchInfo, programImagePath, eventDetails, None, 'trial')
+            generateThumbnail(matchInfo, programImagePath, eventDetails, None, './images/trial')
         elif self.logoSponsorFilepath != None:
-            generateThumbnail(matchInfo, programImagePath, None, self.logoSponsorFilepath, 'trial')
+            generateThumbnail(matchInfo, programImagePath, None, self.logoSponsorFilepath, './images/trial')
         else:
-            generateThumbnail(matchInfo, programImagePath, eventDetails, None, 'trial')
+            generateThumbnail(matchInfo, programImagePath, eventDetails, None, './images/trial')
         
-        image.setPixmap(QPixmap('trial.png').scaled(QSize(424, 240)))
+        image.setPixmap(QPixmap('./images/trial.png').scaled(QSize(424, 240)))
         self.tab.tabBar().setTabTextColor(3, QColor('green'))
     
     def bakeCONFIG(self, button):
@@ -463,8 +465,8 @@ class MainWindow(QWidget):
                 'event' : {
                     'code' : self.event_code.text(),
                     'name' : self.event_name.text(),
-                    'details' : self.eventLocation.text()+'\n'+self.eventCity.text()+'\n'+self.eventDates.text(),
-                    'logo' : self.logoSponsorFilepath,
+                    'details' : self.eventBuilding.text()+'\n'+self.eventCity.text()+'\n'+self.eventDates.text(),
+                    'logoSponsor' : self.logoSponsorFilepath,
                     'forceDetails' : bool(self.thumbnail_force.isChecked())
                 },
                 'season' : {
@@ -480,17 +482,22 @@ class MainWindow(QWidget):
                     'tags' : self.video_tags.text(),
                     'playlist' : self.video_playlist.text().split('?list=')[-1]
                 },
-                'video' : {
-                    'filePath' : self.videoFilepath,
-                    'matchID' : self.match_type.currentText()[0] + self.match_number_ref.text(),
-                    'matchTime' : (self.match_timeMin, self.match_timeSec)
-                },
                 'TBA' : {
                     'Auth_Id' : self.TBA_AuthID.text(),
                     'Auth_Secret': self.TBA_AuthSecret.text(),
                     'eventKey': self.TBA_eventCode.text()
                 }
             }
+
+            if self.twitchUserID == None:
+                CONFIG['video'] = {'type': 'static',
+                                   'filePath' : self.videoFilepath,
+                                   'matchID' : self.match_type.currentText()[0] + self.match_number_ref.text(),
+                                   'matchTime' : (self.match_timeMin, self.match_timeSec)}
+            else:
+                CONFIG['video'] = {'type': 'live', 'twitchUserID' : self.twitchUserID}
+
+            self.CONFIG = CONFIG
 
             with open("CONFIG", "w") as file:
                 json.dump(CONFIG, file, indent=2)

@@ -73,3 +73,26 @@ def upload_video(youtube, media_file:str, request_body:dict, thumbnail: str=None
         response_playlist = request.execute()
     
     return response['id']
+
+def formatYouTubeTitle(matchID:str, event_title:str, year:int, replay:bool=False):
+    """
+    Provide a human-readable title for match video on YouTube
+        * Quals 41 | 2024 FIN Tippecanoe District
+
+    Args:
+        matchID (str): match ID
+        event_title (str): event title
+        year (int): match year
+        replay (bool): video is a replay of a previous match
+    
+    Returns:
+        title (str): matches not found in log file
+
+    """
+
+    translateSymbol = {'M': 'Playoffs', 'P': 'Playoffs', 'Q': 'Quals', 'F': 'Finals'}
+
+    if replay:
+        return f"{translateSymbol[matchID[0]]} {matchID[1:]}R | {year} {event_title}"
+    else:
+        return f"{translateSymbol[matchID[0]]} {matchID[1:]} | {year} {event_title}"

@@ -40,6 +40,7 @@ def translateMatchString(matchID):
 
     Examples:
         Q44 -> qm44 (qm#)
+        P3 -> sf3m1 (sf#m3)
         M6 -> sf6m1 (sf#m1)
         F3 -> f1m3  (f1m#)
 
@@ -52,9 +53,11 @@ def translateMatchString(matchID):
     """
     if matchID[0] == 'Q':
         return 'qm'+matchID[1:]
+    elif matchID[0] == 'P':
+        return 'sf'+matchID[1:]+'m1'
     elif matchID[0] == 'M':
         return 'sf'+matchID[1:]+'m1'
     elif matchID[0] == 'F':
         return 'f1m'+matchID[1:]
     else:
-        raise AttributeError('matchID does not start with one of [Q, M, F]')
+        raise AttributeError('matchID does not start with one of [Q, P, M, F]')
