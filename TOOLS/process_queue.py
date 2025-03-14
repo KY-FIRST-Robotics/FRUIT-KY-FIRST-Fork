@@ -71,7 +71,7 @@ def watch(twitch_user_id:str, stop_event, CREDENTIALS, latestVODs:dict=VODs):
     latestVODs.update(new_VODs)
     
     # Schedule the function to run again after 15 minutes
-    threading.Timer(15*60, watch, args=(twitch_user_id, CREDENTIALS, stop_event, latestVODs)).start()
+    threading.Timer(15*60, watch, args=(twitch_user_id, stop_event, CREDENTIALS, latestVODs)).start()
 
 def process_queue_seek(user_data, stop_event, QLabelCounter, CREDENTIALS):
     """
@@ -228,17 +228,16 @@ def process_queue_build_static(user_data:dict, stop_event, QLabelCounter, matche
 
                 outputFilename = 'output/'+match2str(match, user_data['event']['code'])+'.mp4'
 
-                if not os.path.exists(outputFilename):
-                    with VideoFileClip(user_data['video']['filePath']) as video:
-                        # clip the match and the scores, adding audio fades to taste
-                        seg_match = audio_fadein(video.subclip(secStart - user_data['season']['secondsBeforeStart'], secStart + user_data['season']['secondsOfMatch'] + user_data['season']['secondsAfterEnd']), 0.5)
-                        seg_score = audio_fadeout(video.subclip(secPost - user_data['season']['secondsBeforePost'], secPost + user_data['season']['secondsAfterPost']), 2)
+                with VideoFileClip(user_data['video']['filePath']) as video:
+                    # clip the match and the scores, adding audio fades to taste
+                    seg_match = audio_fadein(video.subclip(secStart - user_data['season']['secondsBeforeStart'], secStart + user_data['season']['secondsOfMatch'] + user_data['season']['secondsAfterEnd']), 0.5)
+                    seg_score = audio_fadeout(video.subclip(secPost - user_data['season']['secondsBeforePost'], secPost + user_data['season']['secondsAfterPost']), 2)
 
-                        # merge together match and scores
-                        final = concatenate_videoclips([seg_match, seg_score])
+                    # merge together match and scores
+                    final = concatenate_videoclips([seg_match, seg_score])
 
-                        # save the results as a file
-                        final.write_videofile(outputFilename, audio_codec='aac')
+                    # save the results as a file
+                    final.write_videofile(outputFilename, audio_codec='aac')
                 
                 queue_send.put(match)
                 incrementCountText(QLabelCounter)

@@ -253,9 +253,15 @@ class MainWindow(QWidget):
         '''
         Bake CONFIG button
         '''
-        self.bake_config_JSON = QPushButton('Bake CONFIG')
-        self.bake_config_JSON.clicked.connect(lambda: self.bakeCONFIG(self.bake_config_JSON))
-        main_layout.addWidget(self.bake_config_JSON)
+        config_container = QWidget()
+        config_layout = QHBoxLayout(config_container)
+        self.load_config = QPushButton('Load CONFIG')
+        self.load_config.clicked.connect(lambda: self.loadCONFIG(self.load_config))
+        config_layout.addWidget(self.load_config)
+        self.bake_config = QPushButton('Bake CONFIG')
+        self.bake_config.clicked.connect(lambda: self.bakeCONFIG(self.bake_config))
+        config_layout.addWidget(self.bake_config)
+        main_layout.addWidget(config_container)
 
         self.startThreadButton = QPushButton('Make The Sauce')
         self.startThreadButton.clicked.connect(self.start_sauce_thread)
@@ -507,6 +513,58 @@ class MainWindow(QWidget):
         except AttributeError:
             button.setStyleSheet('color: red')
             button.setText('Bake CONFIG: ERROR')
+    
+    def loadCONFIG(self, button):
+        response = QFileDialog.getOpenFileName(
+            parent=self,
+            caption='Select a file',
+            directory=os.getcwd(),
+            filter='CONFIG File (*CONFIG)'
+        )
+
+        if response[0]!='':
+            button.setText('📁'+response[0].split('/')[-1])
+            
+            with open(response[0], "r") as file:
+                CONFIG = json.load(file)
+            
+                self.program.setCurrentText(CONFIG['program'])
+
+                self.event_code.setText(CONFIG['event']['code'])
+                self.event_name.setText(CONFIG['event']['name'])
+                eventDetails = CONFIG['event']['details'].split('\n')
+                self.eventBuilding.setText(eventDetails[0])
+                self.eventCity.setText(eventDetails[1])
+                self.eventDates.setText(eventDetails[2])
+                self.logoSponsorFilepath = CONFIG['event']['logoSponsor']
+                self.thumbnail_force.setChecked(CONFIG['event']['forceDetails'])
+
+                self.season_year.setText(str(CONFIG['season']['year']))
+                self.season_secondsBefore.setText(str(CONFIG['season']['secondsBeforeStart']))
+                self.season_matchDuration.setText(str(CONFIG['season']['secondsOfMatch']))
+                self.season_secondsAfterEnd.setText(str(CONFIG['season']['secondsAfterEnd']))
+                self.season_secondsBeforePost.setText(str(CONFIG['season']['secondsBeforePost']))
+                self.season_secondsAfterPost.setText(str(CONFIG['season']['secondsAfterPost']))
+
+                #self.video_description.toPlainText() = CONFIG['YouTube']['description']
+                self.video_tags.setText(CONFIG['YouTube']['tags'])
+                self.video_playlist.setText('https://www.youtube.com/playlist?list='+CONFIG['YouTube']['playlist'])
+
+                self.TBA_AuthID.setText(CONFIG['TBA']['Auth_Id'])
+                self.TBA_AuthSecret.setText(CONFIG['TBA']['Auth_Secret'])
+                self.TBA_eventCode.setText(CONFIG['TBA']['eventKey'])
+
+                if CONFIG['video']['type'] == 'static':
+                    self.videoFilepath = CONFIG['video']['filePath']
+                    self.match_type.setCurrentText({'Q':"Q = Quals", 'P':"P = Playoffs", 'F':"F = Finals"}[CONFIG['video']['matchID'][0]])
+                    self.match_number_ref.setText(CONFIG['video']['matchID'][1:])
+                    self.match_timeMin = CONFIG['video']['matchTime'][0]
+                    self.match_timeSec = CONFIG['video']['matchTime'][1]
+                elif CONFIG['video']['type'] == 'live':
+                    self.twitchUserID = CONFIG['video']['twitchUserID']
+
+        else:
+            print('No CONFIG selected!')
 
 import sys
 if __name__ == '__main__':
