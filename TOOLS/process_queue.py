@@ -153,7 +153,11 @@ def process_queue_build_live(user_data:dict, stop_event, QLabelCounter, latestVO
                 print('ope!')
             
             # prepare VOD cut start-point
-            startSeconds = ((match['start'] - vod['created_at']).total_seconds() +3 -user_data['season']['secondsBeforeStart']) #add stream delay & subtract countdown
+            startSeconds = ((match['start'] - vod['created_at']).total_seconds() +user_data['video']['streamDelay'] -user_data['season']['secondsBeforeStart']) #add stream delay (time from event to server) & subtract countdown
+
+            if startSeconds < 0:
+                raise ValueError("Negative start time.")
+
             trim = startSeconds % 10
             if trim > 9:
                 startSegment = ((math.ceil(startSeconds)//10)-1)*10
@@ -194,6 +198,8 @@ def process_queue_build_live(user_data:dict, stop_event, QLabelCounter, latestVO
             
         except queue.Empty:
             continue
+        except ValueError:
+            print('negative start time, do not retry match')
 
 def process_queue_build_static(user_data:dict, stop_event, QLabelCounter, matches, latestVODs:dict=VODs):
     """

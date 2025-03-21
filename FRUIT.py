@@ -62,7 +62,7 @@ class MainWindow(QWidget):
          - information on how to use tool
          - mostly text
         '''
-        bodyText = "<ol style='font-size: 16px !important;'><li><b>Event Info</b>: used to obtain match details from FMS, learn more at https://frc-events.firstinspires.org/services/api</li><li>Connect to your YouTube account using the browser. Define <b>YouTube Settings</b> for video upload.</li><li>Supply <b>Thumbnail Info</b> and test its generation.</li><li>Set <b>Match Timing</b> offsets in second, relative to match start and scores post (in seconds).</li><li>Select the <b>Video File</b> to be trimmed.</li><li>Connect to <b>The Blue Alliance</b> for match video visibility.</li><li><b>Bake CONFIG</b> to save on future re-entry time.</li><li>Click the <b>Make The Sauce</b> button to get everything rolling!"
+        bodyText = "<ol style='font-size: 16px !important;'><li><b>Event Info</b>: used to obtain match details from FMS, learn more at https://frc-events.firstinspires.org/services/api</li><li>Connect to your YouTube account using the browser. Define <b>YouTube Settings</b> for video upload.</li><li>Supply <b>Thumbnail Info</b> and test its generation.</li><li>Set <b>Match Timing</b> offsets, relative to match start and scores post (in seconds).</li><li>Select the <b>Video File</b> source to be trimmed.</li><li>Connect to <b>The Blue Alliance</b> for match video visibility.</li><li><b>Bake CONFIG</b> to save on future re-entry time.</li><li>Click the <b>Make The Sauce</b> button to get everything rolling!"
 
         page_welcome = QWidget(self)
         layout = QFormLayout()
@@ -94,7 +94,7 @@ class MainWindow(QWidget):
         # FMS pull button
         self.textFMS = QLabel('<font color="red">Event not yet pulled</font>')
         self.button_FMS = QPushButton('Pull FMS')
-        self.button_FMS.clicked.connect(lambda: self.handleFMS(self.season_year.text(), self.event_code.text(), self.textFMS))
+        self.button_FMS.clicked.connect(lambda: self.handleFMS(self.season_year.text(), self.event_code.text().upper(), self.textFMS))
         layout.addWidget(self.button_FMS, 4, 0)
         layout.addWidget(self.textFMS, 4, 1)
         
@@ -113,6 +113,9 @@ class MainWindow(QWidget):
         self.button_FMS = QPushButton('Connect to YouTube')
         self.button_FMS.clicked.connect(self.handleYouTube)
         layout.addRow(self.button_FMS, self.textYouTube)
+        # Playlist
+        self.video_playlist = QLineEdit("https://www.youtube.com/playlist?list=")
+        layout.addRow('Playlist URL (optional):', self.video_playlist)
         # Description
         self.video_description = QPlainTextEdit("Footage of this event is courtesy of FIRST Indiana Robotics.\n\nFollow us on Twitter (@FIRSTINRobotics), Facebook (FIRST Indiana Robotics), and Twitch (FIRSTINRobotics).\n\nFor more information and future event schedules, visit our website: https://www.firstindianarobotics.org")
         layout.addRow('Description:', self.video_description)
@@ -120,9 +123,7 @@ class MainWindow(QWidget):
         self.video_tags = QLineEdit('FIRST Indiana Robotics, FIN')
         layout.addRow(QLabel('Tags (comma-delimited) :'), self.video_tags)
         layout.addRow(QLabel('<i>program will automatically add year, event code, and program (FRC/FTC)</i>'))
-        # Playlist
-        self.video_playlist = QLineEdit("https://www.youtube.com/playlist?list=")
-        layout.addRow('Playlist URL (optional):', self.video_playlist)
+        
         
 
         '''
@@ -166,11 +167,11 @@ class MainWindow(QWidget):
         page_timings.setLayout(layout)
         layout.addRow(QLabel('<b>Define how to chop up the livestream into matches</b><br><i>Units are in seconds, decimals allowed.</i>'))
         #2024 values: [3, 155, 5, -7.25, 16.67]
-        self.season_secondsBefore = QLineEdit('3'); layout.addRow('Before Match :', self.season_secondsBefore)
+        self.season_secondsBefore = QLineEdit(str(3+3.159)); layout.addRow('Before Match :', self.season_secondsBefore)
         self.season_matchDuration = QLineEdit(str(15+5+135)); layout.addRow('Match Duration :', self.season_matchDuration)
-        self.season_secondsAfterEnd = QLineEdit('5'); layout.addRow('After Match :', self.season_secondsAfterEnd)
+        self.season_secondsAfterEnd = QLineEdit(str(5+3)); layout.addRow('After Match :', self.season_secondsAfterEnd)
         self.season_secondsBeforePost = QLineEdit('-8.06'); layout.addRow('Before Post :', self.season_secondsBeforePost)
-        self.season_secondsAfterPost = QLineEdit('25'); layout.addRow('After Post :', self.season_secondsAfterPost)
+        self.season_secondsAfterPost = QLineEdit(str(25+8)); layout.addRow('After Post :', self.season_secondsAfterPost)
         layout.addRow(QLabel('<i>These should add to 179.94 to get a 3:00 video on YouTube</i>'))
         svg_widget = QSvgWidget('./images/matchTrimDiagram.svg')
         svg_widget.setFixedSize(QSize(600, 150))
@@ -191,6 +192,7 @@ class MainWindow(QWidget):
         self.twitch_button.setStyleSheet('color: red')
         self.twitch_button.clicked.connect(self.test_twitch)
         layout.addRow(self.twitch_button)
+        self.twitchDelay = QLineEdit('2.5'); layout.addRow('Stream Delay [sec]:', self.twitchDelay)
         layout.addRow(QLabel('⸻ or ⸻'))
         self.mp4_VOD = QPushButton('Select File')
         self.mp4_VOD.clicked.connect(self.getFileVideo)
@@ -469,7 +471,7 @@ class MainWindow(QWidget):
             CONFIG = {
                 'program' : self.program.currentText(),
                 'event' : {
-                    'code' : self.event_code.text(),
+                    'code' : self.event_code.text().upper(),
                     'name' : self.event_name.text(),
                     'details' : self.eventBuilding.text()+'\n'+self.eventCity.text()+'\n'+self.eventDates.text(),
                     'logoSponsor' : self.logoSponsorFilepath,
@@ -501,7 +503,7 @@ class MainWindow(QWidget):
                                    'matchID' : self.match_type.currentText()[0] + self.match_number_ref.text(),
                                    'matchTime' : (self.match_timeMin, self.match_timeSec)}
             else:
-                CONFIG['video'] = {'type': 'live', 'twitchUserID' : self.twitchUserID}
+                CONFIG['video'] = {'type': 'live', 'twitchUserID' : self.twitchUserID, 'streamDelay' : float(self.twitchDelay.text())}
 
             self.CONFIG = CONFIG
 
@@ -546,7 +548,7 @@ class MainWindow(QWidget):
                 self.season_secondsBeforePost.setText(str(CONFIG['season']['secondsBeforePost']))
                 self.season_secondsAfterPost.setText(str(CONFIG['season']['secondsAfterPost']))
 
-                #self.video_description.toPlainText() = CONFIG['YouTube']['description']
+                self.video_description.setPlainText(CONFIG['YouTube']['description'])
                 self.video_tags.setText(CONFIG['YouTube']['tags'])
                 self.video_playlist.setText('https://www.youtube.com/playlist?list='+CONFIG['YouTube']['playlist'])
 
@@ -562,6 +564,7 @@ class MainWindow(QWidget):
                     self.match_timeSec = CONFIG['video']['matchTime'][1]
                 elif CONFIG['video']['type'] == 'live':
                     self.twitchUserID = CONFIG['video']['twitchUserID']
+                    self.twitchDelay.setText(str(CONFIG['video']['streamDelay']))
 
         else:
             print('No CONFIG selected!')

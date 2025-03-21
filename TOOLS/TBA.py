@@ -8,7 +8,7 @@ def postTheBlueAlliance(TBA_Auth_Id:str, TBA_Auth_Secret:str, TBA_eventKey:str, 
         TBA_Auth_Id (string): X-TBA-Auth-Id provided by TBA for your event 
         TBA_Auth_Secret (string): X-TBA-Auth-Secret provided by TBA for your event
         TBA_eventKey (string): TBA event key for your event
-        data (dict): data structure in according to your TBA write API endpoint
+        data (dict): data structure in according to your TBA write API endpoint; match_videos example: {'q44':'dQw4w9WgXcQ'}
         TBA_Endpoint (string): TBA write API endpoint, include {eventKey}
 
     Returns:
@@ -22,10 +22,10 @@ def postTheBlueAlliance(TBA_Auth_Id:str, TBA_Auth_Secret:str, TBA_eventKey:str, 
     # prepare the information to be hashed, force it to use double-quotes
     preHash = (TBA_Auth_Secret+endpoint+str(data)).replace("'", '"')
 
-    # apply the md5 hash, as specfied in the API documentation
+    # apply the md5 hash, as specified in the API documentation
     postHash = hashlib.md5(preHash.encode("ascii")).hexdigest()
 
-    # define headers for API authetication
+    # define headers for API authentication
     headers = {
         "X-TBA-Auth-Id": TBA_Auth_Id,
         "X-TBA-Auth-Sig": postHash
