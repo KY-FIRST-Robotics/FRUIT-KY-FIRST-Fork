@@ -173,4 +173,5 @@ cython_debug/
 AUTHENTICATION
 
 .vs/
-TOOLS/CREDENTIALS.json
+CREDENTIALS
+TOOLS/client_secrets

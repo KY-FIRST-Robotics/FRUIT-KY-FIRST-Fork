@@ -7,7 +7,8 @@ translateSymbol = {'Q': 'Quals', 'P': 'Playoffs', 'F': 'Finals'}
 
 # CREDENTIALS (dict): credentials from https://frc-events.firstinspires.org/services/api, contains "FRC_username" and "FRC_key" entries
 with open("CREDENTIALS", "r") as file:
-    CREDENTIALS = json.load(file) # contains username + authKey
+    CREDENTIALS = json.load(file)  # contains username + authKey
+
 
 def prepareHeadersFMS(username, authKey):
     """Prepares request header for FMS, allows for authentication
@@ -28,6 +29,8 @@ def prepareHeadersFMS(username, authKey):
     return headers
 
 # sometimes milliseconds isn't reported in FMS - use this to fix that
+
+
 def str2dte(timeString):
     """Converts datetime string that may contain decimal seconds
 
@@ -45,7 +48,8 @@ def str2dte(timeString):
     
     return timeObject
 
-def getMatchesFromFMS(year:int, eventCode:str, program:str, authUsr:str=CREDENTIALS['FRC_username'], authKey:str=CREDENTIALS['FRC_key']):
+
+def getMatchesFromFMS(year: int, eventCode: str, program: str, authUsr: str = CREDENTIALS['FRC_username'], authKey: str = CREDENTIALS['FRC_key']):
     """Connects to FRC FMS records for an event and stores them
 
     Args:
@@ -91,7 +95,7 @@ def rewrapMatches(matchesRaw:list, program:str):
 
     Returns:
         matchesSorted (list): [{'X0': {start': datetime.datetime, 'post': datetime.datetime, 'teamsRed': list(int), 'teamsBlue': list(int)]}, ...]
-    
+
     """
 
     # reorganize them for future work
@@ -128,7 +132,8 @@ def rewrapMatches(matchesRaw:list, program:str):
 
     return matchesSorted
 
-def livestreamDescription(matches:list, originMin:int, originSec:int,  originMatchID:str = 'Q1'):
+
+def livestreamDescription(matches: list, originMin: int, originSec: int,  originMatchID: str = 'Q1'):
     """Generates a string that can be placed in the description of a YouTube livestream recording to provide timestamps for matches
 
     Args:
