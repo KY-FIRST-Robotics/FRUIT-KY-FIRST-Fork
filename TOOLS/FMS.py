@@ -6,7 +6,7 @@ import datetime     # str conversion
 translateSymbol = {'Q': 'Quals', 'P': 'Playoffs', 'F': 'Finals'}
 
 # CREDENTIALS (dict): credentials from https://frc-events.firstinspires.org/services/api, contains "FRC_username" and "FRC_key" entries
-with open("CREDENTIALS", "r") as file:
+with open(r"C:\Users\Gavin\FRUIT-KY-FIRST-Fork\TOOLS\CREDENTIALS", "r") as file:
     CREDENTIALS = json.load(file) # contains username + authKey
 
 def prepareHeadersFMS(username, authKey):
