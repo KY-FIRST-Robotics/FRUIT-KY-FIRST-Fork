@@ -19,6 +19,7 @@ from TOOLS.YouTube import authenticate_youtube
 from TOOLS.thumbnails import generateThumbnail
 from TOOLS.TBA import postTheBlueAlliance
 from TOOLS.Twitch import covertID2Username
+from TOOLS.Youtube_Livestream import convertID2Username
 
 # processes to run on queued threads
 import threading
@@ -194,10 +195,11 @@ class MainWindow(QWidget):
         layout.addRow(self.twitch_button)
         self.twitchDelay = QLineEdit('2.5'); layout.addRow('Stream Delay [sec]:', self.twitchDelay)
         layout.addRow(QLabel('⸻ or ⸻'))
-        self.youtubeUser = QLineEdit('kyfirstrobotics'); layout.addRow('Youtube User:', self.youtubeUser)
+        self.youtubeUser = QLineEdit('kentuckyfirstrobotics'); layout.addRow('Youtube User:', self.youtubeUser)
         self.youtube_button = QPushButton("Test Youtube Connection")
         layout.addRow(self.youtube_button)
         self.youtube_button.setStyleSheet('color: red')
+        self.youtube_button.clicked.connect(self.test_youtube)
         self.youtubeDelay = QLineEdit('2.5'); layout.addRow('Stream Delay [sec]:', self.youtubeDelay)
         layout.addRow(QLabel('⸻ or ⸻'))
         self.mp4_VOD = QPushButton('Select File')
@@ -418,7 +420,29 @@ class MainWindow(QWidget):
             self.twitch_button.setText("Twitch user not found!")
             self.twitch_button.setStyleSheet("color: red;")
             self.tab.tabBar().setTabTextColor(5, QColor('red'))
-    
+
+    def test_youtube(self):
+        
+        self.youtube_button.setText('Looking for Youtube user...')
+        self.youtube_button.setStyleSheet("color: aqua;")
+        self.youtube_button.repaint()
+
+        with open("CREDENTIALS", "r") as file:
+            CREDENTIALS = json.load(file) # contains API credentials
+        
+        try:
+            self.youtubeUserID = convertID2Username(CREDENTIALS['Youtube_API_Key'], CREDENTIALS['Youtube_clientSecret'], self.youtubeUser.text())
+            # self.youtubeUserID = (CREDENTIALS['Youtube_API_Key'] + self.youtubeUser.text())
+            # self.youtubeUserID = "kentuckyfirstrobotics"
+            self.youtube_button.setText('User found! ID:'+ self.youtubeUserID)
+            self.youtube_button.setStyleSheet("color: green;")
+            self.tab.tabBar().setTabTextColor(5, QColor('green'))
+        except IndexError:
+            self.youtube_button.setText("Youtube user not found!")
+            self.youtube_button.setStyleSheet("color: red;")
+            self.tab.tabBar().setTabTextColor(5, QColor('red'))
+        
+        
     def handleTBA(self, TBA_Auth_Id, TBA_Auth_Secret, TBA_eventKey):
         self.button_TBA.setText('Testing TBA API...')
         self.button_TBA.setStyleSheet('color: aqua')

@@ -30,6 +30,16 @@ class CredDialog(QDialog):
         self.layout().addWidget(QLabel("Twitch Client Secret:"))
         self.layout().addWidget(self.Twitch_clientSecret)
 
+        self.Youtube_clientID = QLineEdit()
+        self.layout().addWidget(QLabel("Youtube Client ID:"))
+        self.layout().addWidget(self.Youtube_clientID)
+        self.Youtube_clientSecret = QLineEdit()
+        self.layout().addWidget(QLabel("Youtube Client Secret:"))
+        self.layout().addWidget(self.Youtube_clientSecret)
+        self.Youtube_API_Key = QLineEdit()
+        self.layout().addWidget(QLabel("Youtube API KEY:"))
+        self.layout().addWidget(self.Youtube_API_Key)
+
         self.FTC_username = QLineEdit()
         self.layout().addWidget(QLabel("FTC API Username:"))
         self.layout().addWidget(self.FTC_username)
@@ -51,6 +61,9 @@ class CredDialog(QDialog):
                 self.FRC_key.setText(credentials.get("FRC_key", ""))
                 self.Twitch_clientID.setText(credentials.get("Twitch_clientID", ""))
                 self.Twitch_clientSecret.setText(credentials.get("Twitch_clientSecret", ""))
+                self.Youtube_clientID.setText(credentials.get("Youtube_clientID", ""))
+                self.Youtube_clientSecret.setText(credentials.get("Youtube_clientSecret", ""))
+                self.Youtube_API_Key.setText(credentials.get("Youtube_API_Key", ""))
                 self.FTC_username.setText(credentials.get("FTC_username", ""))
                 self.FTC_key.setText(credentials.get("FTC_key", ""))
         except FileNotFoundError:
@@ -62,12 +75,18 @@ class CredDialog(QDialog):
         FRC_key = self.FRC_key.text()
         Twitch_clientID = self.Twitch_clientID.text()
         Twitch_clientSecret = self.Twitch_clientSecret.text()
+        Youtube_clientID = self.Youtube_clientID.text()
+        Youtube_clientSecret = self.Youtube_clientSecret.text()
+        Youtube_API_Key = self.Youtube_API_Key.text()
         FTC_username = self.FTC_username.text()
         FTC_key = self.FTC_key.text()
         
         with open("CREDENTIALS", "w") as file:
             json.dump({"FRC_username": FRC_username, "FRC_key": FRC_key, 
                        "Twitch_clientID": Twitch_clientID, "Twitch_clientSecret": Twitch_clientSecret, 
+                       "Youtube_clientID": Youtube_clientID, 
+                       "Youtube_clientSecret": Youtube_clientSecret,
+                       "Youtube_API_Key": Youtube_API_Key,
                        "FTC_username": FTC_username, "FTC_key": FTC_key}, file)
 
             
