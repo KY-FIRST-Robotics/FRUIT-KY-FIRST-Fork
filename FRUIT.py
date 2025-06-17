@@ -431,7 +431,7 @@ class MainWindow(QWidget):
             CREDENTIALS = json.load(file) # contains API credentials
         
         try:
-            self.youtubeUserID = convertID2Username(CREDENTIALS['Youtube_API_Key'], CREDENTIALS['Youtube_clientSecret'], self.youtubeUser.text())
+            self.youtubeUserID = convertID2Username(CREDENTIALS['Youtube_clientID'], CREDENTIALS['Youtube_clientSecret'], self.youtubeUser.text())
             # self.youtubeUserID = (CREDENTIALS['Youtube_API_Key'] + self.youtubeUser.text())
             # self.youtubeUserID = "kentuckyfirstrobotics"
             self.youtube_button.setText('User found! ID:'+ self.youtubeUserID)

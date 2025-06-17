@@ -3,19 +3,39 @@ import os
 import subprocess
 import streamlink
 
-def get_youtube_auth(api_key: str, channel_id: str):
-    response = requests.get(
-        "https://www.googleapis.com/youtube/v3/channels",
-        params={
-            'key': api_key,
-            'id': channel_id,
-            'part': 'snippet,statistics'
-        }
-    )
+
+def getYoutubeAuthHeader(client_id:str, client_secret:str, refresh_token:str):
+    """
+    Retrieves the access token for the Youtube API.
+
+    Args:
+        client_id (str): Your Youtube client ID.
+        client_secret (str): Your Youtube client secret.
+
+    Returns:
+        dict: header for use in requests.get for Youtube
+    
+    Raises:
+      Exception: Unable to obtain Youtube access token
+    """
+    
+    params = {
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'grant_type': 'refresh_token',
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "redirect_uris": ["http://localhost"]
+       
+    }
+    
     response = requests.post("https://oauth2.googleapis.com/token", data=params)
 
-    return response.json()
-
+    if response.status_code == 200:
+        return {'Client-ID': client_id, 'Authorization': f'Bearer {response.json()['access_token']}'}
+    else:
+        raise Exception(f"Error: {response.status_code}, {response.text}")
 
 def getYoutubeVideoData(client_id:str, client_secret:str, vod_id:int):
     """
@@ -49,7 +69,7 @@ def convertID2Username(client_id:str, client_secret:str, username:int):
         user_id (str): Youtube user ID
     """
         
-    headersYoutubeAPI = get_youtube_auth(client_id, client_secret)
+    headersYoutubeAPI = getYoutubeAuthHeader(client_id, client_secret)
     user_response = requests.get('https://www.googleapis.com/youtube/v3/channels'+username, headers=headersYoutubeAPI)
     user_data = user_response.json()
     user_id = user_data['data'][0]['id']
