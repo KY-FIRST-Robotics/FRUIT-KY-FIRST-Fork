@@ -19,7 +19,7 @@ from TOOLS.YouTube import authenticate_youtube
 from TOOLS.thumbnails import generateThumbnail
 from TOOLS.TBA import postTheBlueAlliance
 from TOOLS.Twitch import covertID2Username
-from TOOLS.Youtube_Livestream import convertID2Username
+from TOOLS.ytls2 import getChannelIDFromHandleURL
 
 # processes to run on queued threads
 import threading
@@ -431,9 +431,7 @@ class MainWindow(QWidget):
             CREDENTIALS = json.load(file) # contains API credentials
         
         try:
-            self.youtubeUserID = convertID2Username(CREDENTIALS['Youtube_clientID'], CREDENTIALS['Youtube_clientSecret'], self.youtubeUser.text())
-            # self.youtubeUserID = (CREDENTIALS['Youtube_API_Key'] + self.youtubeUser.text())
-            # self.youtubeUserID = "kentuckyfirstrobotics"
+            self.youtubeUserID = getChannelIDFromHandleURL(self.youtubeUser.text())
             self.youtube_button.setText('User found! ID:'+ self.youtubeUserID)
             self.youtube_button.setStyleSheet("color: green;")
             self.tab.tabBar().setTabTextColor(5, QColor('green'))

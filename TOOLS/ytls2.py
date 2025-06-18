@@ -1,24 +1,39 @@
 import requests
+import re
+import json
 
+def getChannelIDFromHandleURL(input_str: str) -> str:
+    """
+    Gets the YouTube channel ID (UC...) from a handle or full URL by parsing the page HTML.
 
-def get_youtube_auth(api_key:str):
-    api_key = "AIzaSyAHHdkKDLSpsicELAan30eVsym4L20ypQQ"
-    return api_key
+    Args:
+        input_str (str): YouTube handle or full URL
 
-def convertID2Username(api_key:str, channel_id:str):
-    response = requests.get(
-    "https://www.googleapis.com/youtube/v3/channels",
-    params={
-    "key": api_key,
-    "id": channel_id,
-    "part": "id"
+    Returns:
+        str: YouTube channel ID
+    """
+    # Normalize input to handle
     
-    
-        },
-    )
-    return response.json()["items"][0]["id"]
+    handle = input_str if input_str.startswith("@") else "@" + input_str
 
-# def main():
-#     get_youtube_auth("AIzaSyAHHdkKDLSpsicELAan30eVsym4L20ypQQ")
+    url = f"https://www.youtube.com/{handle}"
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
 
-# main()
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        raise Exception(f"Failed to load page for {handle}: {response.status_code}")
+
+    # Try to find the ytInitialData block
+    match = re.search(r"var ytInitialData = ({.*?});</script>", response.text)
+    if not match:
+        raise Exception(f"ytInitialData block not found for handle {handle}")
+
+    try:
+        yt_data = json.loads(match.group(1))
+        # Traverse down into the right part of the data
+        metadata = yt_data["metadata"]["channelMetadataRenderer"]
+        return metadata["externalId"]  # this is the UC... channel ID
+    except Exception as e:
+        raise Exception(f"Failed to parse channel ID from ytInitialData: {e}")
