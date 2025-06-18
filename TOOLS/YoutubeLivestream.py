@@ -2,12 +2,12 @@ import requests
 import re
 import json
 
-def getChannelIDFromHandleURL(input_str: str) -> str:
+def getChannelIDFromHandle(input_str: str) -> str:
     """
-    Gets the YouTube channel ID (UC...) from a handle or full URL by parsing the page HTML.
+    Gets the YouTube channel ID from a handle by parsing the page's HTML.
 
     Args:
-        input_str (str): YouTube handle or full URL
+        input_str (str): YouTube handle
 
     Returns:
         str: YouTube channel ID
