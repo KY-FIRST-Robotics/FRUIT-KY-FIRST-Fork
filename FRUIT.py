@@ -458,7 +458,7 @@ class MainWindow(QWidget):
             self.tab.tabBar().setTabTextColor(5, QColor('red'))
 
     def recording_button(self):
-        self.record_button.setText("Looking for/recording livestream... check TOOLS\recordings for video file! ")
+        self.record_button.setText("Looking for/recording livestream... check TOOLS..recordings for video file! ")
         self.record_button.setStyleSheet("color: aqua;")
         self.youtube_button.repaint()
         
