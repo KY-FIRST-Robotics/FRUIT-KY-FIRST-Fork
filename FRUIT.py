@@ -29,6 +29,8 @@ from TOOLS.process_queue import process_queue_build_live
 from TOOLS.process_queue import process_queue_build_static
 from TOOLS.process_queue import process_queue_send
 
+from ffmpegrecord import run_recording_process
+
 # create directories/files if missing
 os.makedirs('log/', exist_ok=True)
 open('log/seek.txt', 'a+').close()
@@ -184,6 +186,14 @@ class MainWindow(QWidget):
          - provide reference match (# and time)
          - watch 4 seconds of clip
         '''
+        def start_recording():
+            '''
+            Runs ffmpeg recording in a thread to prevent GUI from freezing
+            '''
+            
+            thread = threading.Thread(target=run_recording_process, daemon=True)
+            thread.start()
+        
         page_video = QWidget(self)
         layout = QFormLayout()
         page_video.setLayout(layout)
@@ -195,13 +205,20 @@ class MainWindow(QWidget):
         layout.addRow(self.twitch_button)
         self.twitchDelay = QLineEdit('2.5'); layout.addRow('Stream Delay [sec]:', self.twitchDelay)
         layout.addRow(QLabel('⸻ or ⸻'))
-        self.youtubeUser = QLineEdit('kentuckyfirstrobotics'); layout.addRow('Youtube User:', self.youtubeUser)
-        self.youtube_button = QPushButton("Test Youtube Connection")
+        
+        self.youtubeUser = QLineEdit('kentuckyfirstrobotics'); layout.addRow('Youtube Username:', self.youtubeUser)
+        self.youtube_button = QPushButton("Get Channel ID")
         layout.addRow(self.youtube_button)
         self.youtube_button.setStyleSheet('color: red')
-        self.youtube_button.clicked.connect(self.test_youtube)
-        self.youtubeDelay = QLineEdit('2.5'); layout.addRow('Stream Delay [sec]:', self.youtubeDelay)
+        self.youtube_button.clicked.connect(self.get_yt_channel_ID)
+        self.record_button = QPushButton("Start Recording YouTube Livestream! (Polls every ten seconds to see if channel is live)")
+
+        layout.addRow(self.record_button)
+        self.record_button.setStyleSheet('color: red')
+        self.record_button.clicked.connect(start_recording)
+        self.record_button.clicked.connect(self.recording_button)
         layout.addRow(QLabel('⸻ or ⸻'))
+
         self.mp4_VOD = QPushButton('Select File')
         self.mp4_VOD.clicked.connect(self.getFileVideo)
         layout.addRow('Video File:', self.mp4_VOD)
@@ -421,7 +438,7 @@ class MainWindow(QWidget):
             self.twitch_button.setStyleSheet("color: red;")
             self.tab.tabBar().setTabTextColor(5, QColor('red'))
 
-    def test_youtube(self):
+    def get_yt_channel_ID(self):
         
         self.youtube_button.setText('Looking for Youtube user...')
         self.youtube_button.setStyleSheet("color: aqua;")
@@ -439,6 +456,11 @@ class MainWindow(QWidget):
             self.youtube_button.setText("Youtube user not found!")
             self.youtube_button.setStyleSheet("color: red;")
             self.tab.tabBar().setTabTextColor(5, QColor('red'))
+
+    def recording_button(self):
+        self.record_button.setText("Looking for/recording livestream... check TOOLS\recordings for video file! ")
+        self.record_button.setStyleSheet("color: aqua;")
+        self.youtube_button.repaint()
         
         
     def handleTBA(self, TBA_Auth_Id, TBA_Auth_Secret, TBA_eventKey):
