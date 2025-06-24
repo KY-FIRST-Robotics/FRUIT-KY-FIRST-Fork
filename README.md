@@ -29,6 +29,7 @@ A python script (with GUI) for the automated processing of (long) livestream rec
 3. If livestreaming through YouTube, obtain Youtube API Key and Channel ID
 4. Fill empty credentials fields with API information; in FRUIT or in the code
 5. Input correct Season Year and Event Code in the event info tab of FRUIT; no event name needed
+6. Once YouTube livestream is being recorded, the MP4 being recorded to can be used as a static video
 
 
 
