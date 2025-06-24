@@ -3,12 +3,16 @@ import time
 import requests
 import json
 from datetime import datetime
+import threading
+import subprocess
 
 with open("CREDENTIALS", "r") as file:
     CREDENTIALS = json.load(file)
 CHANNEL_ID = CREDENTIALS["Youtube_Channel_ID"]
 API_KEY = CREDENTIALS["Youtube_API_Key"]
 CHECK_INTERVAL = 10  # seconds
+
+ffmpeg_process = None
 
 
 def get_live_video_url(channel_id, api_key):
@@ -48,9 +52,29 @@ def generate_output_filename():
 
 
 def record_stream(stream_url, output_file):
+    global ffmpeg_process
     cmd = ["ffmpeg", "-y", "-i", stream_url, "-c", "copy", "-f", "mpegts", output_file]
     print(f"[INFO] Starting recording to: {output_file}")
-    subprocess.run(cmd)
+    ffmpeg_process = subprocess.Popen(
+        cmd
+    )  # Starts global process so stop_recording can terminate recording
+
+
+def start_recording():
+    """
+    Runs ffmpeg recording in a thread to prevent GUI from freezing
+    """
+    thread = threading.Thread(target=run_recording_process, daemon=True)
+    thread.start()
+
+
+def stop_recording():
+
+    global ffmpeg_process
+    if ffmpeg_process:
+        ffmpeg_process.terminate()
+        ffmpeg_process.wait()
+        ffmpeg_process = None
 
 
 def main():
