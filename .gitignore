@@ -174,4 +174,4 @@ AUTHENTICATION
 
 .vs/
 CREDENTIALS
-TOOLS/client_secrets
+TOOLS\client_secrets
