@@ -10,6 +10,7 @@ CHANNEL_ID = CREDENTIALS["Youtube_Channel_ID"]
 API_KEY = CREDENTIALS["Youtube_API_Key"]
 CHECK_INTERVAL = 10  # seconds
 
+
 def get_live_video_url(channel_id, api_key):
     url = (
         f"https://www.googleapis.com/youtube/v3/search?"
@@ -23,13 +24,14 @@ def get_live_video_url(channel_id, api_key):
         return f"https://www.youtube.com/watch?v={video_id}"
     return None
 
+
 def resolve_stream_url(youtube_url):
     # This calls yt-dlp to extract the direct stream URL, as opposed to the public livestream URL
     result = subprocess.run(
         ["yt-dlp", "-g", "-f", "best", youtube_url],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        text=True
+        text=True,
     )
     if result.returncode == 0:
         return result.stdout.strip()
@@ -37,21 +39,19 @@ def resolve_stream_url(youtube_url):
         print("[ERROR] yt-dlp failed:", result.stderr)
         return None
 
+
 def generate_output_filename():
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S") # Timestamps recordings to avoid overwriting the same file
+    timestamp = datetime.now().strftime(
+        "%Y%m%d_%H%M%S"
+    )  # Timestamps recordings to avoid overwriting the same file
     return f"TOOLS/recordings/{timestamp}.mp4"
 
+
 def record_stream(stream_url, output_file):
-    cmd = [
-        "ffmpeg",
-        "-y",
-        "-i", stream_url,
-        "-c", "copy",
-        "-f", "mpegts",
-        output_file
-    ]
+    cmd = ["ffmpeg", "-y", "-i", stream_url, "-c", "copy", "-f", "mpegts", output_file]
     print(f"[INFO] Starting recording to: {output_file}")
     subprocess.run(cmd)
+
 
 def main():
     print("[INFO] Checking for stream...")
@@ -70,11 +70,7 @@ def main():
             print("[INFO] Stream not live yet. Checking again in 10 seconds...")
             time.sleep(CHECK_INTERVAL)
 
-if __name__ == "__main__":
-    main()
 
 # Wrapper function for GUI use
 def run_recording_process():
     main()
-
-    

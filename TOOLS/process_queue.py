@@ -15,8 +15,8 @@ from TOOLS.Twitch import downloadTwitchClip
 from TOOLS.FMS import getMatchesFromFMS
 from TOOLS.FMS import rewrapMatches
 
-from TOOLS.loggin import listNotInLog
-from TOOLS.loggin import match2str
+from TOOLS.FRUIT_Logger import listNotInLog
+from TOOLS.FRUIT_Logger import match2str
 
 from TOOLS.thumbnails import generateThumbnail
 from TOOLS.YouTube import formatYouTubeTitle
