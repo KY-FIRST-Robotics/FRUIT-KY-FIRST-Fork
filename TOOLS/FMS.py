@@ -5,6 +5,7 @@ import datetime     # str conversion
 import moviepy      #For video handling
 import datetime         # for handling time math
 import os               # for cleaning up temp files
+import subprocess # for running moviepy commands
 
 translateSymbol = {'Q': 'Quals', 'P': 'Playoffs', 'F': 'Finals'}
 

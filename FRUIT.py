@@ -10,6 +10,7 @@ import random       # random thumbnail generation
 import datetime     # str conversion and timeDelta
 import os           # file IO
 import json         # CONFIG handling
+import subprocess   # for running moviepy commands
 
 # my functions, see python scripts in TOOLS
 from TOOLS.CredentialsPopUp import CredDialog
@@ -78,6 +79,7 @@ class MainWindow(QWidget):
         self.credentialsButton = QPushButton("Set/Check Credentials", self)
         self.credentialsButton.clicked.connect(lambda: CredDialog(self).exec())
         layout.addRow(self.credentialsButton)
+
 
         
         '''
@@ -166,6 +168,10 @@ class MainWindow(QWidget):
         page_timings = QWidget(self)
         layout = QFormLayout()
         page_timings.setLayout(layout)
+        layout.addRow(QLabel('<b>Define match timings for livestreams</b>'))
+        self.clip_matches_button = QPushButton("Clip All Matches with Intro")
+        layout.addRow('Clip All Matches :', self.clip_matches_button)
+        self.clip_matches_button.clicked.connect(self.handle_clip_matches)
         layout.addRow(QLabel('<b>Define how to chop up the livestream into matches</b><br><i>Units are in seconds, decimals allowed.</i>'))
         #2024 values: [3, 155, 5, -7.25, 16.67]
         self.season_secondsBefore = QLineEdit(str(3+3.159)); layout.addRow('Before Match :', self.season_secondsBefore)
@@ -357,7 +363,7 @@ class MainWindow(QWidget):
             directory=os.getcwd(),
             filter='Video File (*.mp4)'
         )
-        
+
         self.videoFilepath = response[0]
         
         self.mp4_VOD.setText('📁'+response[0].split('/')[-1])
@@ -444,7 +450,105 @@ class MainWindow(QWidget):
         self.YouTube = authenticate_youtube()
         self.textYouTube.setText('<font color="green">YouTube authenticated!</font>')
         self.tab.tabBar().setTabTextColor(2, QColor('green'))
-    
+
+    def handle_clip_matches(self):
+        if not hasattr(self, 'matches'):
+            print("No matches loaded.")
+            return
+
+        if not self.videoFilepath:
+            print("No video file selected.")
+            return
+
+        intro_file = QFileDialog.getOpenFileName(
+            parent=self,
+            caption='Select intro video file',
+            directory=os.getcwd(),
+            filter='Video File (*.mp4)'
+        )[0]
+
+        if not intro_file:
+            print("No intro file selected.")
+            return
+
+        try:
+            origin_time = self.matches[0]['start']
+            offset = datetime.timedelta(minutes=self.match_timeMin, seconds=self.match_timeSec)
+            origin_time -= offset
+        except Exception as e:
+            print(f"Error calculating origin time: {e}")
+            return
+
+        process_all_matches_with_intro(
+            self.matches,
+            origin_time,
+            self.videoFilepath,
+            intro_file
+        )
+
+# Helper functions for match clipping (should be outside the class)
+def clip_match_with_intro(
+    livestream_file: str,
+    intro_file: str,
+    match_start: datetime.datetime,
+    match_end: datetime.datetime,
+    origin_time: datetime.datetime,
+    output_filename: str
+):
+    """Clips a match from livestream and prepends team intro video"""
+    start_offset = (match_start - origin_time).total_seconds()
+    duration = (match_end - match_start).total_seconds()
+    match_clip = "temp_match_clip.mp4"
+    concat_list = "concat_list.txt"
+
+    print(f"Extracting match from {start_offset}s to {start_offset + duration}s")
+    subprocess.run([
+        "ffmpeg", "-y",
+        "-ss", str(start_offset),
+        "-i", livestream_file,
+        "-t", str(duration),
+        "-c", "copy",
+        match_clip
+    ], check=True)
+
+    print(" Creating file list for concat")
+    with open(concat_list, "w") as f:
+        f.write(f"file '{intro_file}'\n")
+        f.write(f"file '{match_clip}'\n")
+
+    print(f" Generating final match video: {output_filename}")
+    subprocess.run([
+        "ffmpeg", "-y",
+        "-f", "concat",
+        "-safe", "0",
+        "-i", concat_list,
+        "-c", "copy",
+        output_filename
+    ], check=True)
+
+    os.remove(match_clip)
+    os.remove(concat_list)
+    print(f" Finished match video saved as: {output_filename}")
+
+def process_all_matches_with_intro(matches, origin_time, livestream_file, intro_file, output_dir="output_clips"):
+    """Loops through all matches and creates clipped videos with intro"""
+    os.makedirs(output_dir, exist_ok=True)
+    for match in matches:
+        match_id = match['id']
+        match_start = match['start']
+        match_end = match['post']
+        output_filename = os.path.join(output_dir, f"{match_id}_with_intro.mp4")
+
+        print(f"\n Processing match {match_id}")
+        clip_match_with_intro(
+            livestream_file,
+            intro_file,
+            match_start,
+            match_end,
+            origin_time,
+            output_filename
+        )
+
     def handleThumbnail(self, data, image, forceText = False):
         image.setText('<font color="aqua">Generating thumbnail...</font>')
         image.repaint()
@@ -562,6 +666,9 @@ class MainWindow(QWidget):
                 self.TBA_AuthID.setText(CONFIG['TBA']['Auth_Id'])
                 self.TBA_AuthSecret.setText(CONFIG['TBA']['Auth_Secret'])
                 self.TBA_eventCode.setText(CONFIG['TBA']['eventKey'])
+                self.clip_matches_button = QPushButton("Clip All Matches with Intro")
+                self.clip_matches_button.clicked.connect(self.handle_clip_matches)
+
 
                 if CONFIG['video']['type'] == 'static':
                     self.videoFilepath = CONFIG['video']['filePath']
@@ -575,6 +682,7 @@ class MainWindow(QWidget):
 
         else:
             print('No CONFIG selected!')
+
 
 import sys
 if __name__ == '__main__':
