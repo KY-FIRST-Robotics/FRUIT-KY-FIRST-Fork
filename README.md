@@ -19,7 +19,7 @@ A python script (with GUI) for the automated processing of (long) livestream rec
 
 ## Setup for Developers; Getting FRUIT Running 
 1. Download and setup Python 3/Virtual Environment on IDE of choice
-2. Install required packages; see "requirements.txt", for example, type in terminal "py -m pip install moviepy==1.0.3"
+2. Install required packages; pip3 install -r requirements.txt
 3. Add file "client_secrets" to TOOLS folder; take code from example.client_secrets and fill empty quotation marks with correct information
 4. Add file "CREDENTIALS" to main folder; copy code from example.CREDENTIALS
 
