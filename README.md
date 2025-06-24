@@ -24,12 +24,12 @@ A python script (with GUI) for the automated processing of (long) livestream rec
 4. Add file "CREDENTIALS" to main folder; copy code from example.CREDENTIALS
 
 ## Setup for Developers; Operating FRUIT
-1. Follow https://github.com/purduefirst/FRUIT/wiki/APIs and register for desired API keys 
-2. Fill empty credentials fields with API information; in FRUIT or in the code
-3. Input correct Season Year and Event Code in the event info tab of FRUIT; no event name needed
-4. To connect to Youtube, access is needed from Bryce Castle: email castle5@purdue.edu
+1. Follow https://github.com/purduefirst/FRUIT/wiki/APIs and register for desired API keys
+2. If livestreaming through Twitch, obtain Twitch Client ID and Client Secret
+3. If livestreaming through YouTube, obtain Youtube API Key and Channel ID
+4. Fill empty credentials fields with API information; in FRUIT or in the code
+5. Input correct Season Year and Event Code in the event info tab of FRUIT; no event name needed
 
-## To add (notes for myself)
-1. do i tell users to get the client_secrets hidden fields from bryce? how else can they obtain them?
+
 
 
