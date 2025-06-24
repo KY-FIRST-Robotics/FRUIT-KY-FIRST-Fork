@@ -42,8 +42,8 @@ from TOOLS.process_queue import process_queue_seek
 from TOOLS.process_queue import process_queue_build_live
 from TOOLS.process_queue import process_queue_build_static
 from TOOLS.process_queue import process_queue_send
-from ffmpegrecord import start_recording
-from ffmpegrecord import stop_recording
+from TOOLS.ffmpegrecord import start_recording
+from TOOLS.ffmpegrecord import stop_recording
 
 # create directories/files if missing
 os.makedirs("log/", exist_ok=True)
