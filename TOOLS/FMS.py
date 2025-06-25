@@ -168,48 +168,6 @@ def livestreamDescription(matches: list, originMin: int, originSec: int,  origin
     # share the results
     print(desc)
     return desc
-def clip_match_with_intro(
-    livestream_file: str,
-    intro_file: str,
-    match_start: datetime.datetime,
-    match_end: datetime.datetime,
-    origin_time: datetime.datetime,
-    output_filename: str
-):
-    """Clips a match from livestream and prepends team intro video"""
-    start_offset = (match_start - origin_time).total_seconds()
-    duration = (match_end - match_start).total_seconds()
-    match_clip = "temp_match_clip.mp4"
-    concat_list = "concat_list.txt"
-
-    print(f"Extracting match from {start_offset}s to {start_offset + duration}s")
-    subprocess.run([
-        "moviepy", "-y",
-        "-ss", str(start_offset),
-        "-i", livestream_file,
-        "-t", str(duration),
-        "-c", "copy",
-        match_clip
-    ], check=True)
-
-    print(" Creating file list for concat")
-    with open(concat_list, "w") as f:
-        f.write(f"file '{intro_file}'\n")
-        f.write(f"file '{match_clip}'\n")
-
-    print(f" Generating final match video: {output_filename}")
-    subprocess.run([
-        "moviepy", "-y",
-        "-f", "concat",
-        "-safe", "0",
-        "-i", concat_list,
-        "-c", "copy",
-        output_filename
-    ], check=True)
-
-    os.remove(match_clip)
-    os.remove(concat_list)
-    print(f" Finished match video saved as: {output_filename}")
 
 def process_all_matches(matches, origin_time, livestream_file, intro_file, output_dir="output_clips"):
     """Loops through all matches and creates clipped videos with intro"""

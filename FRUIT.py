@@ -20,6 +20,8 @@ from TOOLS.YouTube import authenticate_youtube
 from TOOLS.thumbnails import generateThumbnail
 from TOOLS.TBA import postTheBlueAlliance
 from TOOLS.Twitch import covertID2Username
+from TOOLS.live_resume import capture_match_with_fms
+
 
 # processes to run on queued threads
 import threading
@@ -196,6 +198,11 @@ class MainWindow(QWidget):
         layout.addRow(self.twitch_button)
         self.twitchDelay = QLineEdit('2.5'); layout.addRow('Stream Delay [sec]:', self.twitchDelay)
         layout.addRow(QLabel('⸻ or ⸻'))
+        # Live Match Clip button for capturing real-time stream
+        self.button_live_clip = QPushButton("Record Live Match with Pause/Resume")
+        self.button_live_clip.clicked.connect(self.handleLiveClip)
+        layout.addRow(self.button_live_clip)
+
         self.youtubeUser = QLineEdit('kyfirstrobotics'); layout.addRow('Youtube User:', self.youtubeUser)
         self.youtube_button = QPushButton("Test Youtube Connection")
         layout.addRow(self.youtube_button)
@@ -401,7 +408,32 @@ class MainWindow(QWidget):
         except json.JSONDecodeError:
             text.setText('<font color="red">Event does not exist!</font>')
             self.tab.tabBar().setTabTextColor(1, QColor('red'))
-    
+        
+    def handleLiveClip(self):
+        input_stream_url = "/dev/video0"  # You can make this dynamic if needed
+        match_id = "Q1"  # You could replace with a QLineEdit or ComboBox
+        try:
+            year = int(self.season_year.text())
+        except ValueError:
+            print("⚠️ Invalid year")
+            return
+
+        event_code = self.event_code.text().strip().upper()
+        program = self.program.currentText().strip().upper()
+
+        if not event_code or not match_id:
+            print("⚠️ Missing event code or match ID")
+            return
+
+        capture_match_with_fms(
+            input_stream_url=input_stream_url,
+            match_id=match_id,
+            year=year,
+            event_code=event_code,
+            program=program,
+            output_dir="output_clips"
+    )
+
     def test_twitch(self):
         
         self.twitch_button.setText('Looking for Twitch user...')
