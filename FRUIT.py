@@ -1,5 +1,5 @@
 # imports for GUI
-from PyQt6.QtWidgets import QApplication, QWidget,  QFormLayout, QGridLayout, QTabWidget, QPushButton, QLineEdit, QPlainTextEdit, QLabel, QFileDialog, QComboBox, QCheckBox, QHBoxLayout
+from PyQt6.QtWidgets import QApplication, QWidget, QFormLayout, QGridLayout, QTabWidget, QPushButton, QLineEdit, QPlainTextEdit, QLabel, QFileDialog, QComboBox, QCheckBox, QHBoxLayout
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 from PyQt6.QtGui import QPixmap, QColor
@@ -190,6 +190,10 @@ class MainWindow(QWidget):
         page_video = QWidget(self)
         layout = QFormLayout()
         page_video.setLayout(layout)
+        # Live Match Clip button for capturing real-time stream
+        self.button_live_clip = QPushButton("Record Live Match with Pause/Resume")
+        self.button_live_clip.clicked.connect(self.handleLiveClip)
+        layout.addRow(self.button_live_clip)
         layout.addRow(QLabel('<b>Provide twitch livestream OR static video file</b>'))
         self.twitchUser = QLineEdit('firstinrobotics'); layout.addRow('Twitch User:', self.twitchUser)
         self.twitch_button = QPushButton("Test Twitch Connection")
@@ -198,11 +202,7 @@ class MainWindow(QWidget):
         layout.addRow(self.twitch_button)
         self.twitchDelay = QLineEdit('2.5'); layout.addRow('Stream Delay [sec]:', self.twitchDelay)
         layout.addRow(QLabel('⸻ or ⸻'))
-        # Live Match Clip button for capturing real-time stream
-        self.button_live_clip = QPushButton("Record Live Match with Pause/Resume")
-        self.button_live_clip.clicked.connect(self.handleLiveClip)
-        layout.addRow(self.button_live_clip)
-
+    
         self.youtubeUser = QLineEdit('kyfirstrobotics'); layout.addRow('Youtube User:', self.youtubeUser)
         self.youtube_button = QPushButton("Test Youtube Connection")
         layout.addRow(self.youtube_button)
