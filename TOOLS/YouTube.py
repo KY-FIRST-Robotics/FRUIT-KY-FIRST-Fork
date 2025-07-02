@@ -14,7 +14,7 @@ def authenticate_youtube(SCOPES: list=["https://www.googleapis.com/auth/youtube.
     """
 
     # Get credentials and create an API client
-    flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file("client_secret.json", SCOPES)
+    flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secret_file("client_secret.json", SCOPES)
     flow.redirect_uri = 'http://localhost:8080/'
 
     credentials = flow.run_local_server(port=8080)
