@@ -4,4 +4,5 @@ requests==2.31.0
 pillow==10.2.0
 google-api-python-client==2.123.0
 streamlink==6.11.0
+yt-dlp
 

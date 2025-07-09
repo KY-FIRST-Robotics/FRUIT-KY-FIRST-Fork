@@ -18,10 +18,17 @@ A python script (with GUI) for the automated processing of (long) livestream rec
 - [ ] Cool logo
 
 ## Setup for Developers; Getting FRUIT Running 
-1. Download and setup Python 3/Virtual Environment on IDE of choice
+1. Download and setup Python 3 + Virtual Environment on IDE of choice
 2. Install required packages; pip3 install -r requirements.txt
 3. Add file "client_secrets" to TOOLS folder; take code from example.client_secrets and fill empty quotation marks with correct information
 4. Add file "CREDENTIALS" to main folder; copy code from example.CREDENTIALS
+5. Download the latest release version of ffmpeg https://www.gyan.dev/ffmpeg/builds/
+6. Add ffmpeg's bin folder to system path
+6A. Press Windows + S or navigate to the search bar
+6B. Look up and go to "Edit environment variables for your account"
+6C. Click Path, then click Edit
+6D. Press Browse, then select the "bin" folder inside the ffmpeg folder
+6E. Press Ok
 
 ## Setup for Developers; Operating FRUIT
 1. Follow https://github.com/purduefirst/FRUIT/wiki/APIs and register for desired API keys
