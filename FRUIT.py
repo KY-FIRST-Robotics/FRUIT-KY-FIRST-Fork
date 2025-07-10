@@ -66,6 +66,9 @@ class MainWindow(QWidget):
         self.YouTube = None
         self.stop_event = threading.Event()
 
+        with open("EventPage", "r") as file:
+            EventPage = json.load(file)
+
         """
         set window title, size and layout
         """
@@ -270,12 +273,14 @@ class MainWindow(QWidget):
         layout.addRow("Stream Delay [sec]:", self.twitchDelay)
         layout.addRow(QLabel("⸻ or ⸻"))
 
-        self.youtubeUser = QLineEdit("kentuckyfirstrobotics")
-        layout.addRow("Youtube Username:", self.youtubeUser)
-        self.youtube_button = QPushButton("Get Channel ID")
-        layout.addRow(self.youtube_button)
-        self.youtube_button.setStyleSheet("color: red")
-        self.youtube_button.clicked.connect(self.get_yt_channel_ID)
+        # self.youtubeUser = QLineEdit("kentuckyfirstrobotics")
+        # layout.addRow("Youtube Username:", self.youtubeUser)
+        # self.youtube_button = QPushButton("Get Channel ID")
+        # layout.addRow(self.youtube_button)
+        # self.youtube_button.setStyleSheet("color: red")
+        # self.youtube_button.clicked.connect(self.get_yt_channel_ID)
+
+        # Above commented out, helpful to get channel ID but that can be found on YouTube channel and takes up space in FRUIT
 
         self.record_button = QPushButton(
             "Start Recording YouTube Livestream! (Polls every ten seconds to see if channel is live)"
