@@ -731,8 +731,20 @@ class MainWindow(QWidget):
 
             with open("CONFIG", "w") as file:
                 json.dump(CONFIG, file, indent=2)
+
+            original_text = button.text()
+            original_style = button.styleSheet()
+
             button.setStyleSheet("color: green")
             button.setText("Bake CONFIG: SUCCESS!")
+
+            QTimer.singleShot(
+                2000,
+                lambda: (
+                    button.setStyleSheet(original_style),
+                    button.setText(original_text),
+                ),
+            )
 
         except AttributeError:
             button.setStyleSheet("color: red")
