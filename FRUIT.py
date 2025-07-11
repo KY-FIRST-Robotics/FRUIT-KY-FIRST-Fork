@@ -405,7 +405,8 @@ class MainWindow(QWidget):
 
     def start_sauce_thread(self):
         # disable the button to prevent double-click
-        self.startThreadButton.setEnabled(False)
+        # Commenting out to enable double click for reusability
+        # self.startThreadButton.setEnabled(False)
 
         # clear the stop event
         self.stop_event.clear()
