@@ -665,6 +665,21 @@ class MainWindow(QWidget):
 
     def bakeCONFIG(self, button):
         try:
+
+            original_text = button.text()
+            original_style = button.styleSheet()
+
+            button.setStyleSheet("color: green")
+            button.setText("Bake CONFIG: SUCCESS!")
+
+            QTimer.singleShot(
+                2000,
+                lambda: (
+                    button.setStyleSheet(original_style),
+                    button.setText(original_text),
+                ),
+            )
+            
             CONFIG = {
                 "program": self.program.currentText(),
                 "event": {
@@ -724,23 +739,13 @@ class MainWindow(QWidget):
             with open("CONFIG", "w") as file:
                 json.dump(CONFIG, file, indent=2)
 
-            original_text = button.text()
-            original_style = button.styleSheet()
-
-            button.setStyleSheet("color: green")
-            button.setText("Bake CONFIG: SUCCESS!")
-
-            QTimer.singleShot(
-                2000,
-                lambda: (
-                    button.setStyleSheet(original_style),
-                    button.setText(original_text),
-                ),
-            )
+            
         
         except AttributeError:
             button.setStyleSheet("color: red")
             button.setText("Bake CONFIG: ERROR")
+            
+        
             
            
 
