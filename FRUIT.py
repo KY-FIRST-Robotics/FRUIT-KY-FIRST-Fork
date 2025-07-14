@@ -1,13 +1,15 @@
 # imports for GUI
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QFormLayout, QGridLayout, QTabWidget,
-    QPushButton, QLineEdit, QPlainTextEdit, QLabel, QFileDialog,
-    QComboBox, QCheckBox, QHBoxLayout, QVBoxLayout
+    QWidget, QFormLayout, QGridLayout, QTabWidget,
+    QPushButton, QLineEdit, QPlainTextEdit, QLabel,
+    QComboBox, QCheckBox, QHBoxLayout
 )
+from PyQt6.QtWidgets import QFileDialog
+from PyQt6.QtWidgets import QApplication
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 from PyQt6.QtGui import QPixmap, QColor
-from PyQt6.QtCore import QSize, QUrl, QTimer, OThread, pyqtSignal
+from PyQt6.QtCore import QSize, QUrl, QTimer
 from PyQt6.QtSvgWidgets import QSvgWidget
 import sys
 
@@ -43,6 +45,7 @@ open('log/seek.txt', 'a+').close()
 open('log/send.txt', 'a+').close()
 os.makedirs('output/', exist_ok=True)
 os.makedirs('output/thumbnails', exist_ok=True)
+recorder_process = None
 
 # translator for symbols
 translateSymbol = {'M': 'Playoffs', 'P': 'Playoffs', 'Q': 'Quals', 'F': 'Finals'}
@@ -203,6 +206,9 @@ class MainWindow(QWidget):
         self.button_end_clip = QPushButton("End Intro Clip ")
         layout.addRow(self.button_intro_clip)
         layout.addRow(self.button_end_clip)
+        self.button_intro_clip.clicked.connect(self.start_intro_clip)
+        self.button_end_clip.clicked.connect(self.stop_intro_clip)
+
         layout.addRow(QLabel('<b>Provide twitch livestream OR static video file</b>'))
         self.twitchUser = QLineEdit('firstinrobotics'); layout.addRow('Twitch User:', self.twitchUser)
         self.twitch_button = QPushButton("Test Twitch Connection")
@@ -618,67 +624,48 @@ class MainWindow(QWidget):
         else:
             print('No CONFIG selected!')
 
-def clip_match_with_intro(
-    livestream_file: str,
-    intro_file: str,
-    match_start: datetime.datetime,
-    match_end: datetime.datetime,
-    origin_time: datetime.datetime,
-    output_filename: str
-):
-    """Clips a match from livestream and prepends team intro video"""
-    start_offset = (match_start - origin_time).total_seconds()
-    duration = (match_end - match_start).total_seconds()
-    match_clip = "temp_match_clip.mp4"
-    concat_list = "concat_list.txt"
+    def start_intro_clip(self):
+        output_file = "output_clips/manual_intro.mp4"
+        stream_url = "rtsp://your_stream_url_here"  # update this
 
-    print(f"Extracting match from {start_offset}s to {start_offset + duration}s")
-    subprocess.run([
-        "ffmpeg", "-y",
-        "-ss", str(start_offset),
-        "-i", livestream_file,
-        "-t", str(duration),
-        "-c", "copy",
-        match_clip
-    ], check=True)
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-i", stream_url,
+            "-c:v", "copy",
+            "-c:a", "copy",
+            output_file
+        ]
+        global recorder_process
+        recorder_process = subprocess.Popen(cmd)
+        self.status.setText("🎬 Intro recording started...")
 
-    print(" Creating file list for concat")
-    with open(concat_list, "w") as f:
-        f.write(f"file '{intro_file}'\n")
-        f.write(f"file '{match_clip}'\n")
+    def stop_intro_clip(self):
+        if self.recorder_process:
+            self.recorder_process.terminate()
+            self.recorder_process.wait()
+            self.recorder_process = None
+            self.status.setText("⏹️ Intro recording stopped.")
 
-    print(f" Generating final match video: {output_filename}")
-    subprocess.run([
-        "ffmpeg", "-y",
-        "-f", "concat",
-        "-safe", "0",
-        "-i", concat_list,
-        "-c", "copy",
-        output_filename
-    ], check=True)
 
-    os.remove(match_clip)
-    os.remove(concat_list)
-    print(f" Finished match video saved as: {output_filename}")
+# def process_all_matches_with_intro(matches, origin_time, livestream_file, intro_file, output_dir="output_clips"):
+#     """Loops through all matches and creates clipped videos with intro"""
+#     os.makedirs(output_dir, exist_ok=True)
+#     for match in matches:
+#         match_id = match['id']
+#         match_start = match['start']
+#         match_end = match['post']
+#         output_filename = os.path.join(output_dir, f"{match_id}_with_intro.mp4")
 
-def process_all_matches_with_intro(matches, origin_time, livestream_file, intro_file, output_dir="output_clips"):
-    """Loops through all matches and creates clipped videos with intro"""
-    os.makedirs(output_dir, exist_ok=True)
-    for match in matches:
-        match_id = match['id']
-        match_start = match['start']
-        match_end = match['post']
-        output_filename = os.path.join(output_dir, f"{match_id}_with_intro.mp4")
-
-        print(f"\n Processing match {match_id}")
-        clip_match_with_intro(
-            livestream_file,
-            intro_file,
-            match_start,
-            match_end,
-            origin_time,
-            output_filename
-        )
+#         print(f"\n Processing match {match_id}")
+#         clip_match_with_intro(
+#             livestream_file,
+#             intro_file,
+#             match_start,
+#             match_end,
+#             origin_time,
+#             output_filename
+#         )
 
 def handle_clip_matches(self):
     if not hasattr(self, 'matches'):
