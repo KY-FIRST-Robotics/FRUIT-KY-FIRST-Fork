@@ -66,9 +66,6 @@ class MainWindow(QWidget):
         self.YouTube = None
         self.stop_event = threading.Event()
 
-        with open("EventPage", "r") as file:
-            EventPage = json.load(file)
-
         """
         set window title, size and layout
         """
@@ -408,6 +405,20 @@ class MainWindow(QWidget):
         # Commenting out to enable double click for reusability
         # self.startThreadButton.setEnabled(False)
 
+        original_text = self.startThreadButton.text()
+        original_style = self.startThreadButton.styleSheet()
+
+        self.startThreadButton.setText("Making Sauce")
+        self.startThreadButton.setStyleSheet("color: green")
+
+        QTimer.singleShot(
+            2000,
+            lambda: (
+                self.startThreadButton.setStyleSheet(original_style),
+                self.startThreadButton.setText(original_text),
+            ),
+        )
+
         # clear the stop event
         self.stop_event.clear()
 
@@ -471,10 +482,15 @@ class MainWindow(QWidget):
         self.media_player.setPosition(position)
         self.media_player.play()
 
+        original_style = self.play_button.styleSheet()
+
         # Pause the video after 4 seconds
         QTimer.singleShot(4000, self.media_player.pause)
         self.tab.tabBar().setTabTextColor(5, QColor("green"))
         self.play_button.setStyleSheet("color: green")
+        QTimer.singleShot(
+            4000, lambda: (self.play_button.setStyleSheet(original_style),)
+        )
 
     def getFileVideo(self, button):
         response = QFileDialog.getOpenFileName(
