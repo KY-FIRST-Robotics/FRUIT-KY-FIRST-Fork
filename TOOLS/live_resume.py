@@ -57,6 +57,7 @@ def rewrapMatches(matches, program):
 
 def getMatchesFromFMS(year, event_code, program, username, key):
     """Stub for getMatchesFromFMS - replace with actual implementation."""
+    # This function should return match data from the FMS API.
     return []
 
 def wait_for_match_start(match_id: str, matches_url_data, program: str, poll_interval=5):
