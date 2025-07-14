@@ -270,15 +270,6 @@ class MainWindow(QWidget):
         layout.addRow("Stream Delay [sec]:", self.twitchDelay)
         layout.addRow(QLabel("⸻ or ⸻"))
 
-        # self.youtubeUser = QLineEdit("kentuckyfirstrobotics")
-        # layout.addRow("Youtube Username:", self.youtubeUser)
-        # self.youtube_button = QPushButton("Get Channel ID")
-        # layout.addRow(self.youtube_button)
-        # self.youtube_button.setStyleSheet("color: red")
-        # self.youtube_button.clicked.connect(self.get_yt_channel_ID)
-
-        # Above commented out, helpful to get channel ID but that can be found on YouTube channel and takes up space in FRUIT
-
         self.record_button = QPushButton(
             "Start Recording YouTube Livestream! (Polls every ten seconds to see if channel is live)"
         )
@@ -401,9 +392,6 @@ class MainWindow(QWidget):
         self.show()
 
     def start_sauce_thread(self):
-        # disable the button to prevent double-click
-        # Commenting out to enable double click for reusability
-        # self.startThreadButton.setEnabled(False)
 
         original_text = self.startThreadButton.text()
         original_style = self.startThreadButton.styleSheet()
@@ -590,24 +578,6 @@ class MainWindow(QWidget):
             self.twitch_button.setStyleSheet("color: red;")
             self.tab.tabBar().setTabTextColor(5, QColor("red"))
 
-    def get_yt_channel_ID(self):
-
-        self.youtube_button.setText("Looking for Youtube user...")
-        self.youtube_button.setStyleSheet("color: aqua;")
-        self.youtube_button.repaint()
-
-        with open("CREDENTIALS", "r") as file:
-            CREDENTIALS = json.load(file)  # contains API credentials
-
-        try:
-            self.youtubeUserID = getChannelIDFromHandle(self.youtubeUser.text())
-            self.youtube_button.setText("User found! ID:" + self.youtubeUserID)
-            self.youtube_button.setStyleSheet("color: green;")
-            self.tab.tabBar().setTabTextColor(5, QColor("green"))
-        except IndexError:
-            self.youtube_button.setText("Youtube user not found!")
-            self.youtube_button.setStyleSheet("color: red;")
-            self.tab.tabBar().setTabTextColor(5, QColor("red"))
 
     def recording_button(self):
         self.record_button.setText(
