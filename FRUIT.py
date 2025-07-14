@@ -1,10 +1,15 @@
 # imports for GUI
-from PyQt6.QtWidgets import QApplication, QWidget, QFormLayout, QGridLayout, QTabWidget, QPushButton, QLineEdit, QPlainTextEdit, QLabel, QFileDialog, QComboBox, QCheckBox, QHBoxLayout
+from PyQt6.QtWidgets import (
+    QApplication, QWidget, QFormLayout, QGridLayout, QTabWidget,
+    QPushButton, QLineEdit, QPlainTextEdit, QLabel, QFileDialog,
+    QComboBox, QCheckBox, QHBoxLayout, QVBoxLayout
+)
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 from PyQt6.QtGui import QPixmap, QColor
-from PyQt6.QtCore import QSize, QUrl, QTimer
+from PyQt6.QtCore import QSize, QUrl, QTimer, OThread, pyqtSignal
 from PyQt6.QtSvgWidgets import QSvgWidget
+import sys
 
 import random       # random thumbnail generation
 import datetime     # str conversion and timeDelta
@@ -191,9 +196,13 @@ class MainWindow(QWidget):
         layout = QFormLayout()
         page_video.setLayout(layout)
         # Live Match Clip button for capturing real-time stream
-        self.button_live_clip = QPushButton("Record Live Match with Pause/Resume")
-        self.button_live_clip.clicked.connect(self.handleLiveClip)
-        layout.addRow(self.button_live_clip)
+        # self.button_live_clip = QPushButton("Record Live Match with Pause/Resume")
+        # self.button_live_clip.clicked.connect(self.handleLiveClip)
+
+        self.button_intro_clip = QPushButton("Record Intro Clip")
+        self.button_end_clip = QPushButton("End Intro Clip ")
+        layout.addRow(self.button_intro_clip)
+        layout.addRow(self.button_end_clip)
         layout.addRow(QLabel('<b>Provide twitch livestream OR static video file</b>'))
         self.twitchUser = QLineEdit('firstinrobotics'); layout.addRow('Twitch User:', self.twitchUser)
         self.twitch_button = QPushButton("Test Twitch Connection")
