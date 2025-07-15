@@ -1,11 +1,7 @@
 # imports for GUI
-from PyQt6.QtWidgets import (
-    QWidget, QFormLayout, QGridLayout, QTabWidget,
-    QPushButton, QLineEdit, QPlainTextEdit, QLabel,
-    QComboBox, QCheckBox, QHBoxLayout
-)
-from PyQt6.QtWidgets import QFileDialog
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QWidget, QFormLayout, QGridLayout, QTabWidget
+from PyQt6.QtWidgets import QPushButton, QLineEdit, QPlainTextEdit, QLabel
+from PyQt6.QtWidgets import QComboBox, QCheckBox, QHBoxLayout, QFileDialog, QApplication
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 from PyQt6.QtGui import QPixmap, QColor
@@ -206,6 +202,9 @@ class MainWindow(QWidget):
 
         self.button_intro_clip = QPushButton("Record Intro Clip")
         self.button_end_clip = QPushButton("End Intro Clip ")
+        self.button_attach_intro = QPushButton("Attach Intro Clip to Match")
+        self.button_attach_intro.setEnabled(False)  # Initially disabled until intro is recorded
+        layout.addRow(self.button_attach_intro)
         layout.addRow(self.button_intro_clip)
         layout.addRow(self.button_end_clip)
         self.button_intro_clip.clicked.connect(self.start_intro_clip)
@@ -450,6 +449,11 @@ class MainWindow(QWidget):
             program=program,
             output_dir="output_clips"
     )
+    def get_next_match_id(self):
+        now = datetime.datetime.now()
+        future_matches = [m for m in self.matches if m["start"] > now]
+        future_matches.sort(key=lambda m: m["start"])
+        return future_matches[0]["id"] if future_matches else None
 
     def test_twitch(self):
         
