@@ -94,15 +94,21 @@ def capture_match_with_fms(
     match_data = wait_for_match_start(match_id, get_fms_data, program)
     start_time = match_data["start"].timestamp()
 
-    if with_intro:
-        intro_start_time = start_time - intro_duration
-        time_until_intro = intro_start_time - time.time()
-        if time_until_intro > 0:
-            print(f"⏰ Waiting {time_until_intro:.2f}s to begin intro recording...")
-            time.sleep(time_until_intro)
+    # Check if there's a pending intro file instead of freshly recorded one
+    pending_intro = os.path.join(output_dir, f"{match_id}_intro_pending.mp4")
+    if os.path.exists(pending_intro):
+        print(f"🔗 Found intro for {match_id}, attaching it to match video...")
+        concat_segments([pending_intro, match_file], final_output)
+        os.remove(pending_intro)
+        os.remove(match_file)
+    elif with_intro:
+        print(f"🎞️ Attaching freshly recorded intro to {match_id}...")
+        concat_segments([intro_file, match_file], final_output)
+        os.remove(intro_file)
+        os.remove(match_file)
+    else:
+        final_output = match_file
 
-        print(f"🎥 Recording intro for {intro_duration}s...")
-        record_segment(input_stream_url, intro_file, duration=intro_duration)
 
     time_until_match = start_time - time.time()
     if time_until_match > 0:

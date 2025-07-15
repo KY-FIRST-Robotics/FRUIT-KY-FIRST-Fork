@@ -45,7 +45,7 @@ open('log/seek.txt', 'a+').close()
 open('log/send.txt', 'a+').close()
 os.makedirs('output/', exist_ok=True)
 os.makedirs('output/thumbnails', exist_ok=True)
-recorder_process = None
+# recorder_process is now an instance attribute of MainWindow
 
 # translator for symbols
 translateSymbol = {'M': 'Playoffs', 'P': 'Playoffs', 'Q': 'Quals', 'F': 'Finals'}
@@ -59,6 +59,8 @@ class MainWindow(QWidget):
         self.twitchUserID = None
         self.YouTube = None
         self.stop_event = threading.Event()
+        self.recorder_process = None
+        self.status = QLabel("")  # Add a status label if not already present
 
         '''
         set window title, size and layout
@@ -638,34 +640,26 @@ class MainWindow(QWidget):
         ]
         global recorder_process
         recorder_process = subprocess.Popen(cmd)
-        self.status.setText("🎬 Intro recording started...")
-
     def stop_intro_clip(self):
         if self.recorder_process:
             self.recorder_process.terminate()
             self.recorder_process.wait()
             self.recorder_process = None
-            self.status.setText("⏹️ Intro recording stopped.")
+
+            # Auto-associate with next match
+            match_id = self.get_next_match_id() if hasattr(self, 'get_next_match_id') else None
+            if not match_id:
+                self.status.setText("⚠️ No upcoming match found.")
+                return
+
+            new_intro_path = os.path.join("output_clips", f"{match_id}_intro_pending.mp4")
+            os.rename("output_clips/manual_intro.mp4", new_intro_path)
+            self.status.setText(f"⏹️ Intro saved and linked to match {match_id}.")
+        os.rename("output_clips/manual_intro.mp4", new_intro_path)
+        self.status.setText(f"⏹️ Intro saved and linked to match {match_id}.")
 
 
-# def process_all_matches_with_intro(matches, origin_time, livestream_file, intro_file, output_dir="output_clips"):
-#     """Loops through all matches and creates clipped videos with intro"""
-#     os.makedirs(output_dir, exist_ok=True)
-#     for match in matches:
-#         match_id = match['id']
-#         match_start = match['start']
-#         match_end = match['post']
-#         output_filename = os.path.join(output_dir, f"{match_id}_with_intro.mp4")
 
-#         print(f"\n Processing match {match_id}")
-#         clip_match_with_intro(
-#             livestream_file,
-#             intro_file,
-#             match_start,
-#             match_end,
-#             origin_time,
-#             output_filename
-#         )
 
 def handle_clip_matches(self):
     if not hasattr(self, 'matches'):
