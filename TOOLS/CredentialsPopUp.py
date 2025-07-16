@@ -30,6 +30,13 @@ class CredDialog(QDialog):
         self.layout().addWidget(QLabel("Twitch Client Secret:"))
         self.layout().addWidget(self.Twitch_clientSecret)
 
+        self.Youtube_API_Key = QLineEdit()
+        self.layout().addWidget(QLabel("Youtube API KEY:"))
+        self.layout().addWidget(self.Youtube_API_Key)
+        self.Youtube_Channel_ID = QLineEdit()
+        self.layout().addWidget(QLabel("Youtube Channel ID:"))
+        self.layout().addWidget(self.Youtube_Channel_ID)
+
         self.FTC_username = QLineEdit()
         self.layout().addWidget(QLabel("FTC API Username:"))
         self.layout().addWidget(self.FTC_username)
@@ -51,6 +58,8 @@ class CredDialog(QDialog):
                 self.FRC_key.setText(credentials.get("FRC_key", ""))
                 self.Twitch_clientID.setText(credentials.get("Twitch_clientID", ""))
                 self.Twitch_clientSecret.setText(credentials.get("Twitch_clientSecret", ""))
+                self.Youtube_API_Key.setText(credentials.get("Youtube_API_Key", ""))
+                self.Youtube_Channel_ID.setText(credentials.get("Youtube_Channel_ID", ""))
                 self.FTC_username.setText(credentials.get("FTC_username", ""))
                 self.FTC_key.setText(credentials.get("FTC_key", ""))
         except FileNotFoundError:
@@ -62,12 +71,15 @@ class CredDialog(QDialog):
         FRC_key = self.FRC_key.text()
         Twitch_clientID = self.Twitch_clientID.text()
         Twitch_clientSecret = self.Twitch_clientSecret.text()
+        Youtube_API_Key = self.Youtube_API_Key.text()
+        Youtube_Channel_ID = self.Youtube_Channel_ID.text()
         FTC_username = self.FTC_username.text()
         FTC_key = self.FTC_key.text()
         
         with open("CREDENTIALS", "w") as file:
             json.dump({"FRC_username": FRC_username, "FRC_key": FRC_key, 
                        "Twitch_clientID": Twitch_clientID, "Twitch_clientSecret": Twitch_clientSecret, 
+                       "Youtube_API_Key": Youtube_API_Key, "Youtube_Channel_ID": Youtube_Channel_ID,
                        "FTC_username": FTC_username, "FTC_key": FTC_key}, file)
 
             
