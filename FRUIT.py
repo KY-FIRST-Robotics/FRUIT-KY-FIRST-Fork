@@ -6,7 +6,7 @@ from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 from PyQt6.QtGui import QPixmap, QColor
 from PyQt6.QtCore import QSize, QUrl, QTimer
-from PyQt6.QtSvgWidgets import QSvgWidget
+from PyQt6.QtSvgWidgets import QSvgWidget 
 import sys
 
 import random       # random thumbnail generation
