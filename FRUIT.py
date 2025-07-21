@@ -107,7 +107,7 @@ class MainWindow(QWidget):
         self.youtube_button.setStyleSheet("color: red")
         self.youtube_button.clicked.connect(self.get_yt_channel_ID)
         self.channelID = QLineEdit("")
-        layout.addRow("", self.channelID)
+        layout.addRow("Copy + Paste the Channel ID for your YouTube Credentials:", self.channelID)
 
 
         
@@ -604,13 +604,14 @@ class MainWindow(QWidget):
             CREDENTIALS = json.load(file)  # contains API credentials
         try:
             self.youtubeUserID = getChannelIDFromHandle(self.youtubeUser.text())
-            self.channelID.setText("User found! ID: " + self.youtubeUserID)
+            self.youtube_button.setText("User ID Found!")
+            self.youtube_button.setStyleSheet("color: green")
+            self.channelID.setText(self.youtubeUserID)
             self.channelID.setStyleSheet("color: green;")
             self.tab.tabBar().setTabTextColor(5, QColor("green"))
         except IndexError:
-            self.channelID.setText("Youtube user not found!")
-            self.channelID.setStyleSheet("color: red;")
-            self.tab.tabBar().setTabTextColor(5, QColor("red"))
+            self.youtube_button.setText("YouTube user not found!")
+            self.youtube_button.setStyleSheet("color: red")
 
 
     def recording_button(self):

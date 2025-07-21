@@ -39,7 +39,7 @@ A python script (with GUI) for the automated processing of (long) livestream rec
 6. Once YouTube livestream is being recorded, the MP4 being recorded to can be used as a static video
 
 ## Guide for use
-1. Welcome page: select correct program and enter and save all necessary credentials. Enter YouTube Username and copy the channel ID if you plan to record and clip a YouTube livestream
+1. Welcome page: select correct program and enter and save all necessary credentials. Enter YouTube Username and copy + paste the channel ID if you plan to record and clip a YouTube livestream
 2. Event Info: Enter season year and event code for the event, and pull FMS
 3. YouTube Settings: Add your own description, tags, and if desired playlist link. Authenticate your YouTube account
 4. Thumbnail Info: Add any image for sponsor logo if desired, enter correct information and test thumbnail
