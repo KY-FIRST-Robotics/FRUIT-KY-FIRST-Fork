@@ -1,3 +1,6 @@
+#This Intro_capture.py script serves as an excellent reference or standalone test script for the *_intro_pending.mp4 concept.
+
+
 from datetime import datetime, timedelta
 import time
 import json

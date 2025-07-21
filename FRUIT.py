@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import QPushButton, QLineEdit, QPlainTextEdit, QLabel
 from PyQt6.QtWidgets import QComboBox, QCheckBox, QHBoxLayout, QFileDialog, QApplication
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
+from PyQt6.QtWidgets import QFileDialog, QMessageBox 
 from PyQt6.QtGui import QPixmap, QColor
 from PyQt6.QtCore import QSize, QUrl, QTimer
 from PyQt6.QtSvgWidgets import QSvgWidget 
@@ -24,6 +25,8 @@ from TOOLS.thumbnails import generateThumbnail
 from TOOLS.TBA import postTheBlueAlliance
 from TOOLS.Twitch import covertID2Username
 from TOOLS.live_resume import capture_match_with_fms
+from TOOLS.ffmpegrecord import concat_segments 
+
 
 
 # processes to run on queued threads
@@ -206,6 +209,7 @@ class MainWindow(QWidget):
         self.button_attach_intro.setEnabled(False)  # Initially disabled until intro is recorded
         layout.addRow(self.button_attach_intro)
         layout.addRow(self.button_intro_clip)
+        self.button_attach_intro.clicked.connect(self.attach_manual_intro_to_match)
         layout.addRow(self.button_end_clip)
         self.button_intro_clip.clicked.connect(self.start_intro_clip)
         self.button_end_clip.clicked.connect(self.stop_intro_clip)
@@ -450,11 +454,16 @@ class MainWindow(QWidget):
             output_dir="output_clips"
     )
     def get_next_match_id(self):
+       # Ensure self.matches is loaded and contains 'start' times
+        if not hasattr(self, 'matches') or not self.matches:
+            return None
+        
+        # Filter out matches that have already started
         now = datetime.datetime.now()
+        # Convert FMS start times (which are datetime objects) to ensure direct comparison
         future_matches = [m for m in self.matches if m["start"] > now]
-        future_matches.sort(key=lambda m: m["start"])
+        future_matches.sort(key=lambda m: m["start"]) # Sort by soonest first
         return future_matches[0]["id"] if future_matches else None
-
     def test_twitch(self):
         
         self.twitch_button.setText('Looking for Twitch user...')
@@ -631,8 +640,39 @@ class MainWindow(QWidget):
             print('No CONFIG selected!')
 
     def start_intro_clip(self):
-        output_file = "output_clips/manual_intro.mp4"
-        stream_url = "rtsp://your_stream_url_here"  # update this
+        output_file = "output_clips/manual_intro.mp4" # Temporary filename for the intro clip
+
+        # Dynamically determine the stream URL
+        stream_url = ""
+        if hasattr(self, 'CONFIG') and self.CONFIG:
+            if self.CONFIG['video']['type'] == 'live':
+                # This needs to be the actual stream URL from Twitch/YouTube.
+                # You'll need to fetch this from the Twitch/YouTube API or
+                # assume the user will input it if not automated.
+                # For now, let's use a placeholder assuming it's correctly set up.
+                if self.twitchUserID:
+                    # Placeholder: In a real scenario, you'd get the actual stream URL from Twitch API
+                    stream_url = f"rtmp://live.twitch.tv/app/{self.twitchUserID}" # Example, might vary
+                    self.status.setText("Note: Twitch stream URL needs proper fetching.")
+                elif self.youtubeUser.text():
+                    # Placeholder: Similar for YouTube live stream URL
+                    stream_url = f"rtmp://a.rtmp.youtube.com/live2/{self.youtubeUser.text()}" # Example, might vary
+                    self.status.setText("Note: YouTube stream URL needs proper fetching.")
+                else:
+                    self.status.setText("Error: Live stream source (Twitch/YouTube user) not configured.")
+                    return
+            elif self.CONFIG['video']['type'] == 'static' and self.videoFilepath:
+                stream_url = self.videoFilepath
+            else:
+                self.status.setText("Error: Video source not selected or configured in CONFIG.")
+                return
+        else:
+            self.status.setText("Error: CONFIG not baked. Cannot determine stream source.")
+            return
+
+        if not stream_url:
+            self.status.setText("Error: Could not determine stream URL for intro recording.")
+            return
 
         cmd = [
             "ffmpeg",
@@ -642,25 +682,117 @@ class MainWindow(QWidget):
             "-c:a", "copy",
             output_file
         ]
-        global recorder_process
-        recorder_process = subprocess.Popen(cmd)
+        
+        try:
+            self.recorder_process = subprocess.Popen(cmd)
+            self.status.setText("🎬 Intro recording started...")
+            self.button_intro_clip.setEnabled(False) # Disable start button
+            self.button_end_clip.setEnabled(True)    # Enable end button
+            self.button_attach_intro.setEnabled(False) # Disable attach for now
+        except FileNotFoundError:
+            self.status.setText("Error: FFmpeg command not found. Make sure FFmpeg is installed and in your PATH.")
+        except Exception as e:
+            self.status.setText(f"Error starting intro recording: {e}")
+
+
     def stop_intro_clip(self):
-        if self.recorder_process:
+        if self.recorder_process: 
             self.recorder_process.terminate()
             self.recorder_process.wait()
             self.recorder_process = None
+            
+             # Re-enable/disable buttons
+            self.button_intro_clip.setEnabled(True)
+            self.button_end_clip.setEnabled(False)
 
-            # Auto-associate with next match
-            match_id = self.get_next_match_id() if hasattr(self, 'get_next_match_id') else None
-            if not match_id:
-                self.status.setText("⚠️ No upcoming match found.")
+            temp_intro_path = "output_clips/manual_intro.mp4"
+
+            if not os.path.exists(temp_intro_path):
+                self.status.setText("⚠️ No intro clip recorded. Please start recording first.")
                 return
+            
+            next_match_id = None
+            # Check if CONFIG is loaded and it's a live stream setup
+            if hasattr(self, 'CONFIG') and self.CONFIG and self.CONFIG.get('video', {}).get('type') == 'live':
+                # Attempt to get next match ID for live stream automatic association
+                next_match_id = self.get_next_match_id()
+                if not next_match_id:
+                    self.status.setText("⚠️ No upcoming match found for automatic intro linking. Intro saved as manual_intro.mp4.")
+                    # Keep as manual_intro.mp4 if no match can be linked automatically
+                    self.button_attach_intro.setEnabled(True) # Allow manual attachment later
+                    return # Exit here, as no auto-rename will happen
+                
+             # If we are here, either it's live and next_match_id was found, OR it's VOD
+            if next_match_id:
+                # For Live stream: automatically rename
+                new_intro_path = os.path.join("output_clips", f"{next_match_id}_intro_pending.mp4")
+                try:
+                    os.rename(temp_intro_path, new_intro_path)
+                    self.status.setText(f"⏹️ Intro saved and linked to match {next_match_id}.")
+                    self.button_attach_intro.setEnabled(True) # Enable attach button
+                except Exception as e:
+                    self.status.setText(f"Error renaming intro file: {e}")
+            else:
+                # For VOD or if live match not found: Keep as manual_intro.mp4
+                self.status.setText("⏹️ Intro recording stopped. Saved as manual_intro.mp4 (no specific match linked automatically).")
+                self.button_attach_intro.setEnabled(True) # Enable attach button for manual selection late
+def attach_manual_intro_to_match(self):
+        """
+        Handles attaching a manually recorded intro clip to a selected VOD match.
+        Assumes the user has already selected the main match VOD and entered its ID.
+        """
+        # 1. Check if a main match video (VOD) has been selected
+        if not self.videoFilepath:
+            self.status.setText("Error: Please select the main match video file first (under 'Video File' tab).")
+            QMessageBox.warning(self, "Missing Video", "Please select the main match video file first.")
+            return
 
-            new_intro_path = os.path.join("output_clips", f"{match_id}_intro_pending.mp4")
-            os.rename("output_clips/manual_intro.mp4", new_intro_path)
-            self.status.setText(f"⏹️ Intro saved and linked to match {match_id}.")
-        os.rename("output_clips/manual_intro.mp4", new_intro_path)
-        self.status.setText(f"⏹️ Intro saved and linked to match {match_id}.")
+        # 2. Allow user to select the intro video file
+        #    Suggest 'output_clips' directory where manual_intro.mp4 would reside
+        intro_file_path, _ = QFileDialog.getOpenFileName(
+            parent=self,
+            caption='Select the intro video file (e.g., manual_intro.mp4)',
+            directory=os.path.join(os.getcwd(), "output_clips"), 
+            filter='Video Files (*.mp4 *.mov *.ts)'
+        )
+
+        if not intro_file_path:
+            self.status.setText("Attachment cancelled: No intro file selected.")
+            return
+
+        # 3. Get the target match ID for the VOD from GUI input fields
+        match_type_char = self.match_type.currentText()[0] # e.g., 'Q', 'P', 'F'
+        match_number = self.match_number_ref.text().strip()
+
+        if not match_number:
+            self.status.setText("Error: Please enter the 'First Match Number' for VOD processing.")
+            QMessageBox.warning(self, "Missing Match ID", "Please enter the 'First Match Number' for the VOD.")
+            return
+
+        match_id_for_vod = f"{match_type_char}{match_number}"
+        output_dir = "output_clips" # Assuming output_clips is your default output folder
+        os.makedirs(output_dir, exist_ok=True) # Ensure output directory exists
+
+        # 4. Define the final output filename for the combined video
+        final_output_filename = os.path.join(output_dir, f"{match_id_for_vod}_with_intro.mp4")
+
+        self.status.setText(f"Combining intro and match for {match_id_for_vod}...")
+        try:
+            # Call concat_segments to combine the intro and main match video
+            concat_segments([intro_file_path, self.videoFilepath], final_output_filename)
+            
+            # 5. Clean up the original manual_intro.mp4 if it was the selected intro
+            if os.path.basename(intro_file_path) == "manual_intro.mp4":
+                os.remove(intro_file_path) # Delete the temporary intro clip
+
+            self.status.setText(f"✅ Intro attached to {match_id_for_vod}. Saved as: {final_output_filename}")
+            QMessageBox.information(self, "Success", f"Video combined! Saved as:\n{final_output_filename}")
+            self.button_attach_intro.setEnabled(False) # Disable after successful attachment to prevent re-attaching same intro
+        except Exception as e:
+            self.status.setText(f"Error combining VOD files: {e}")
+            QMessageBox.critical(self, "Combination Error", f"Failed to combine videos: {e}")
+            print(f"Error in attach_manual_intro_to_match: {e}")
+            self.button_attach_intro.setEnabled(True) # Keep enabled if failed, user might retry
 
 
 

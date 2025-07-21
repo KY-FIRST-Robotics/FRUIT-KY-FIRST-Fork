@@ -93,6 +93,22 @@ def capture_match_with_fms(
 
     match_data = wait_for_match_start(match_id, get_fms_data, program)
     start_time = match_data["start"].timestamp()
+    if with_intro:
+        intro_start_time = start_time - intro_duration
+        time_until_intro = intro_start_time - time.time()
+
+        if time_until_intro > 0:
+            print(f"⏰ Waiting {time_until_intro:.2f}s to begin intro recording for {match_id}...")
+            time.sleep(time_until_intro)
+        else:
+            # If we're already past the calculated intro start time,
+            # we should still record, but log a warning.
+            print(f"⚠️ Warning: Intro recording for {match_id} started late ({abs(time_until_intro):.2f}s).")
+
+        print(f"🎥 Recording intro for {intro_duration}s to {intro_file}...")
+        record_segment(input_stream_url, intro_file, duration=intro_duration)
+
+   
 
     # Check if there's a pending intro file instead of freshly recorded one
     pending_intro = os.path.join(output_dir, f"{match_id}_intro_pending.mp4")
