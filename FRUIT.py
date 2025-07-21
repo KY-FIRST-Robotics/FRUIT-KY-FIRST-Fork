@@ -90,6 +90,7 @@ class MainWindow(QWidget):
                 "<h1>FIRST Robotics Uploader from an Indiana Teammate</h1>\n<i>Make each tab green then you're ready to proceed.</i>"
             )
         )
+
         layout.addRow(QLabel(bodyText))
         # select program (FRC/FTC)
         self.program = QComboBox()
@@ -102,12 +103,12 @@ class MainWindow(QWidget):
 
         self.youtubeUser = QLineEdit("kentuckyfirstrobotics")
         layout.addRow("Youtube Username:", self.youtubeUser)
-        self.youtube_button = QPushButton("Get Channel ID")
+        self.youtube_button = QPushButton("Get YouTube Channel ID")
         layout.addRow(self.youtube_button)
         self.youtube_button.setStyleSheet("color: red")
         self.youtube_button.clicked.connect(self.get_yt_channel_ID)
         self.channelID = QLineEdit("")
-        layout.addRow("Copy + Paste the Channel ID for your YouTube Credentials:", self.channelID)
+        layout.addRow("Copy + Paste:", self.channelID)
 
 
         
