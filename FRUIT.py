@@ -11,8 +11,7 @@ from PyQt6.QtSvgWidgets import QSvgWidget
 import sys
 
 import random       # random thumbnail generation
-import datetime     # str conversion and timeDelta
-import os           # file IO
+from datetime import datetime, timedelta # Make sure timedelta is also imported hereimport os           # file IO
 import json         # CONFIG handling
 import subprocess   # for running moviepy commands
 
@@ -25,7 +24,7 @@ from TOOLS.thumbnails import generateThumbnail
 from TOOLS.TBA import postTheBlueAlliance
 from TOOLS.Twitch import covertID2Username
 from TOOLS.live_resume import capture_match_with_fms
-from TOOLS.ffmpegrecord import concat_segments 
+#from TOOLS.ffmpegrecord import concat_segments 
 
 
 

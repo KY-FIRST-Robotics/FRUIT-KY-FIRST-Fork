@@ -1,8 +1,7 @@
 import json         # response handling
 import requests     # API data request
 import base64       # API hashing
-import datetime     # str conversion
-import moviepy      #For video handling
+from datetime import datetime, timedelta # Make sure timedelta is also imported hereimport moviepy      #For video handling
 import datetime         # for handling time math
 import os               # for cleaning up temp files
 import subprocess # for running moviepy commands
@@ -67,6 +66,30 @@ def getMatchesFromFMS(year: int, eventCode: str, program: str, authUsr: str = CR
         matchesRaw (list): [{'X0': {start': datetime.datetime, 'post': datetime.datetime, 'teamsRed': list(int), 'teamsBlue': list(int)]}, ...]
 
     """
+
+    """Mocks FMS data for testing. Returns a match starting soon."""
+    # Let's make Q1 start very soon for quick testing
+    fake_start_time_Q1 = datetime.now() + timedelta(seconds=10) # Start in 10 seconds
+    fake_post_time_Q1 = fake_start_time_Q1 + timedelta(minutes=2, seconds=45) # ~2:45 after start
+
+    fake_start_time_Q2 = datetime.now() + timedelta(minutes=2, seconds=0) # Start in 2 minutes
+    fake_post_time_Q2 = fake_start_time_Q2 + timedelta(minutes=2, seconds=45)
+
+    return [
+        {
+            'id': 'Q1',
+            'start': fake_start_time_Q1,
+            'actualStartTime': fake_start_time_Q1, # Mock this to be the same as 'start' for testing
+            'postResultTime': fake_post_time_Q1  # Mock a post time
+        },
+        {
+            'id': 'Q2',
+            'start': fake_start_time_Q2,
+            'actualStartTime': fake_start_time_Q2, # Mock this to be the same as 'start' for testing
+            'postResultTime': fake_post_time_Q2  # Mock a post time
+        },
+    ]
+
     # enforce program input
     if program not in ('FRC', 'FTC'):
         raise ValueError(f"Invalid input: {program}, must be 'FRC' or 'FTC'.")
@@ -87,6 +110,8 @@ def getMatchesFromFMS(year: int, eventCode: str, program: str, authUsr: str = CR
         matchesRaw = responseQuals.json()['Matches'] + responsePlayoffs.json()['Matches']
     elif program == 'FTC':
         matchesRaw = responseQuals.json()['matches'] + responsePlayoffs.json()['matches']
+    else:
+        raise ValueError(f"Invalid program: {program}")
     
     return matchesRaw
 
