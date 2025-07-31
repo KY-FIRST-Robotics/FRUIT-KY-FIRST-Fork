@@ -107,7 +107,13 @@ class MainWindow(QWidget):
         # FMS pull button
         self.textFMS = QLabel('<font color="red">Event not yet pulled</font>')
         self.button_FMS = QPushButton('Pull FMS')
-        self.button_FMS.clicked.connect(lambda: self.handleFMS(self.season_year.text(), self.event_code.text().upper(), self.textFMS))
+        self.button_FMS.clicked.connect(
+            lambda: self.handleFMS(
+                self.season_year.text(),
+                self.event_code.text().upper(),
+                self.textFMS
+            )
+        )
         layout.addWidget(self.button_FMS, 4, 0)
         layout.addWidget(self.textFMS, 4, 1)
         
