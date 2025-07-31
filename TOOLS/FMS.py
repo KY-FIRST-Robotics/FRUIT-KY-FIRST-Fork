@@ -1,8 +1,8 @@
 import json         # response handling
 import requests     # API data request
 import base64       # API hashing
-from datetime import datetime, timedelta # Make sure timedelta is also imported hereimport moviepy      #For video handling
-import datetime         # for handling time math
+from datetime import datetime, timedelta
+
 import os               # for cleaning up temp files
 import subprocess # for running moviepy commands
 
@@ -45,9 +45,9 @@ def str2dte(timeString):
 
     """
     try:
-        timeObject = datetime.datetime.strptime(timeString, "%Y-%m-%dT%H:%M:%S.%f")
+        timeObject = datetime.strptime(timeString, "%Y-%m-%dT%H:%M:%S.%f")
     except ValueError:
-        timeObject = datetime.datetime.strptime(timeString, "%Y-%m-%dT%H:%M:%S")
+        timeObject = datetime.strptime(timeString, "%Y-%m-%dT%H:%M:%S")
     
     return timeObject
 
@@ -80,40 +80,49 @@ def getMatchesFromFMS(year: int, eventCode: str, program: str, authUsr: str = CR
             'id': 'Q1',
             'start': fake_start_time_Q1,
             'actualStartTime': fake_start_time_Q1, # Mock this to be the same as 'start' for testing
-            'postResultTime': fake_post_time_Q1  # Mock a post time
+            'postResultTime': fake_post_time_Q1,  # Mock a post time
+            'description': 'Qualification Match 1',
+            'tournamentLevel': 'Qualification', 
+            'matchNumber': 1
         },
         {
             'id': 'Q2',
             'start': fake_start_time_Q2,
             'actualStartTime': fake_start_time_Q2, # Mock this to be the same as 'start' for testing
-            'postResultTime': fake_post_time_Q2  # Mock a post time
+            'postResultTime': fake_post_time_Q2,  # Mock a post time
+            'description': 'Qualification Match 2',
+            'tournamentLevel': 'Qualification', 
+            'matchNumber': 2
         },
     ]
 
-    # enforce program input
-    if program not in ('FRC', 'FTC'):
-        raise ValueError(f"Invalid input: {program}, must be 'FRC' or 'FTC'.")
+    # The following code is unreachable due to the return above.
+    # To use the real API, comment out or remove the above return statement and uncomment the code below.
 
-    # define API url and request headers, based on: https://frc-api-docs.firstinspires.org/#733f4607-ab40-4e00-b3e1-36cfb1a2e77e
-    if program == 'FRC':
-        url = 'https://frc-api.firstinspires.org/v3.0/'+str(year)+'/matches/'+eventCode
-    elif program == 'FTC':
-        url = 'http://ftc-api.firstinspires.org/v2.0/'+str(year)+'/matches/'+eventCode
-    headers = prepareHeadersFMS(authUsr, authKey)
+    # # enforce program input
+    # if program not in ('FRC', 'FTC'):
+    #     raise ValueError(f"Invalid input: {program}, must be 'FRC' or 'FTC'.")
 
-    # make the API call (separately to prevent stale results)
-    responseQuals = requests.get(url+'?tournamentLevel=Qualification', headers=headers, verify=False)
-    responsePlayoffs = requests.get(url+'?tournamentLevel=Playoff', headers=headers, verify=False)
+    # # define API url and request headers, based on: https://frc-api-docs.firstinspires.org/#733f4607-ab40-4e00-b3e1-36cfb1a2e77e
+    # if program == 'FRC':
+    #     url = 'https://frc-api.firstinspires.org/v3.0/'+str(year)+'/matches/'+eventCode
+    # elif program == 'FTC':
+    #     url = 'http://ftc-api.firstinspires.org/v2.0/'+str(year)+'/matches/'+eventCode
+    # headers = prepareHeadersFMS(authUsr, authKey)
 
-    # combine the two match calls together
-    if program == 'FRC':
-        matchesRaw = responseQuals.json()['Matches'] + responsePlayoffs.json()['Matches']
-    elif program == 'FTC':
-        matchesRaw = responseQuals.json()['matches'] + responsePlayoffs.json()['matches']
-    else:
-        raise ValueError(f"Invalid program: {program}")
-    
-    return matchesRaw
+    # # make the API call (separately to prevent stale results)
+    # responseQuals = requests.get(url+'?tournamentLevel=Qualification', headers=headers, verify=False)
+    # responsePlayoffs = requests.get(url+'?tournamentLevel=Playoff', headers=headers, verify=False)
+
+    # # combine the two match calls together
+    # if program == 'FRC':
+    #     matchesRaw = responseQuals.json()['Matches'] + responsePlayoffs.json()['Matches']
+    # elif program == 'FTC':
+    #     matchesRaw = responseQuals.json()['matches'] + responsePlayoffs.json()['matches']
+    # else:
+    #     raise ValueError(f"Invalid program: {program}")
+    # 
+    # return matchesRaw
 
 def rewrapMatches(matchesRaw:list, program:str):
     """Reformats FMS matches response into a list of match dictionaries

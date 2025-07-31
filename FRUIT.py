@@ -14,6 +14,7 @@ import random       # random thumbnail generation
 from datetime import datetime, timedelta # Make sure timedelta is also imported hereimport os           # file IO
 import json         # CONFIG handling
 import subprocess   # for running moviepy commands
+import os
 
 # my functions, see python scripts in TOOLS
 from TOOLS.CredentialsPopUp import CredDialog
@@ -410,12 +411,16 @@ class MainWindow(QWidget):
             CREDENTIALS = json.load(file) # contains API credentials
         
         try:
+            matchesRaw = None
             if self.program.currentText() == 'FRC':
                 matchesRaw = getMatchesFromFMS(year, eventCode, self.program.currentText(), CREDENTIALS['FRC_username'], CREDENTIALS['FRC_key'])
             elif self.program.currentText() == 'FTC':
                 matchesRaw = getMatchesFromFMS(year, eventCode, self.program.currentText(), CREDENTIALS['FTC_username'], CREDENTIALS['FTC_key'])
             
-            self.matches = rewrapMatches(matchesRaw, self.program.currentText())
+            if matchesRaw is not None:
+                self.matches = rewrapMatches(matchesRaw, self.program.currentText())
+            else:
+                self.matches = []
             
             if len(self.matches) > 0:
                 text.setText('<font color="green">'+str(len(self.matches))+' matches found for '+eventCode+'.</font>')
@@ -735,7 +740,7 @@ class MainWindow(QWidget):
                 # For VOD or if live match not found: Keep as manual_intro.mp4
                 self.status.setText("⏹️ Intro recording stopped. Saved as manual_intro.mp4 (no specific match linked automatically).")
                 self.button_attach_intro.setEnabled(True) # Enable attach button for manual selection late
-def attach_manual_intro_to_match(self):
+    def attach_manual_intro_to_match(self):
         """
         Handles attaching a manually recorded intro clip to a selected VOD match.
         Assumes the user has already selected the main match VOD and entered its ID.
@@ -831,7 +836,6 @@ def handle_clip_matches(self):
         intro_file
     )
 
-import sys
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = MainWindow()
